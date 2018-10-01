@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import Ridge, LogisticRegression
 from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.metrics import roc_auc_score, mean_squared_error
-from utils import transform_datetime_features
+#from utils import transform_datetime_features
 
 # Директория с данными
 DATA_DIR = r'm:\tmp\SB'
@@ -22,21 +22,22 @@ train_csv = os.path.join(fd, r'train.csv')
 test_csv = os.path.join(fd, r'test.csv')
 # Правильные ответы
 target_csv = os.path.join(fd, r'test-target.csv')
-# Правильные ответы
-target_csv = os.path.join(fd, r'test-target.csv')
 
 df = pd.read_csv(train_csv)
-print('Dataset read, shape {}'.format(df.shape))
-print('Dataset memory usage {:.3} MB'.format(df.memory_usage().sum() / 1024 / 1024))
-#df[df['target'] > 0] # 365 246 0.67
+print('Train dataset read, shape {}'.format(df.shape))
+print('Train dataset memory usage {:.3} MB'.format(df.memory_usage().sum() / 1024 / 1024))
 
-
-
+# Данные для провекри
 df_test = pd.read_csv(test_csv)
-print('Test Dataset read, shape {}'.format(df.shape))
+print('Test dataset read, shape {}'.format(df.shape))
+print('Test dataset memory usage {:.3} MB'.format(df_test.memory_usage().sum() / 1024 / 1024))
+# Данные с правильными ответами
 y_true = pd.read_csv(target_csv)
 #y_true[y_true['target'] > 0] # 172 115 0.668
 #
+
+# Для классификации составляем датасет из признаков есть target или нет
+
 y_true['target'] = (y_true['target'] > 0).astype(np.int8)
 y_true['target'].hist(bins=100)
 df['target'].hist(bins=100)
