@@ -21,34 +21,38 @@ def main(args):
     df = pd.read_csv(args.test_csv)
     print('Test Dataset read, shape {}'.format(df.shape))
     print('Dataset memory usage {:.3} MB'.format(df.memory_usage().sum() / 1024 / 1024))
+    print('is_work {}'.format(model_config['is_work']))
+    
+    if model_config['is_work']:
+        if not model_config['is_big']:
+            # features from datetime
+            df = transform_datetime_features(df)
 
-    if not model_config['is_big']:
-        # features from datetime
-        df = transform_datetime_features(df)
+            # categorical encoding
+            for col_name, unique_values in model_config['categorical_values'].items():
+                for unique_value in unique_values:
+                    df['onehot_{}={}'.format(col_name, unique_value)] = (df[col_name] == unique_value).astype(int)
 
-        # categorical encoding
-        for col_name, unique_values in model_config['categorical_values'].items():
-            for unique_value in unique_values:
-                df['onehot_{}={}'.format(col_name, unique_value)] = (df[col_name] == unique_value).astype(int)
+        # missing values
+        if model_config['missing']:
+            df.fillna(-1, inplace=True)
+        elif any(df.isnull()):
+            df.fillna(value=df.mean(axis=0), inplace=True)
 
-    # missing values
-    if model_config['missing']:
-        df.fillna(-1, inplace=True)
-    elif any(df.isnull()):
-        df.fillna(value=df.mean(axis=0), inplace=True)
+        # filter columns
+        used_columns = model_config['used_columns']
 
-    # filter columns
-    used_columns = model_config['used_columns']
+        # scale
+        #X_scaled = model_config['scaler'].transform(df[used_columns])
+        X_scaled = df[used_columns]
 
-    # scale
-    #X_scaled = model_config['scaler'].transform(df[used_columns])
-    X_scaled = df[used_columns]
-
-    model = model_config['model']
-    if model_config['mode'] == 'regression':
-        df['prediction'] = model.predict(X_scaled)
-    elif model_config['mode'] == 'classification':
-        df['prediction'] = model.predict_proba(X_scaled)[:, 1]
+        model = model_config['model']
+        if model_config['mode'] == 'regression':
+            df['prediction'] = model.predict(X_scaled)
+        elif model_config['mode'] == 'classification':
+            df['prediction'] = model.predict_proba(X_scaled)[:, 1]
+    else:
+        df['prediction'] = 0
 
     df[['line_id', 'prediction']].to_csv(args.prediction_csv, index=False)
 
