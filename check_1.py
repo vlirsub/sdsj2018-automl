@@ -28,21 +28,33 @@ target_csv = os.path.join(fd, r'test-target.csv')
 df = pd.read_csv(train_csv)
 print('Dataset read, shape {}'.format(df.shape))
 print('Dataset memory usage {:.3} MB'.format(df.memory_usage().sum() / 1024 / 1024))
-df[df['target'] > 0] # 365 246 0.67
+#df[df['target'] > 0] # 365 246 0.67
+
+
 
 df_test = pd.read_csv(test_csv)
 print('Test Dataset read, shape {}'.format(df.shape))
 y_true = pd.read_csv(target_csv)
 #y_true[y_true['target'] > 0] # 172 115 0.668
+#
 y_true['target'] = (y_true['target'] > 0).astype(np.int8)
+y_true['target'].hist(bins=100)
+df['target'].hist(bins=100)
 
-df_y = (df.target > 0).astype(np.int8)
+df_y = df.target
 df_X = df.drop('target', axis=1)
 # Удаление line_id
 df_X = df_X.drop('line_id', axis=1)
 
-# Для регресси оставляем только определенные значения target
+# Для регрессии оставляем только определенные значения target (> 0)
+df_X = df[df['target'] > 0].copy()
+df_y = df_X['target'].copy()
+df_X = df_X.drop('target', axis=1)
 
+df_test = pd.merge(df_test, y_true, on='line_id')
+df_test = df_test[df_test['target'] > 0]
+y_true = df_test[['target']]
+df_test = df_test.drop('target', axis=1)
 
 # В начале классифицируем по признаку надо ли делать регресию или нет, target > 0
 
@@ -119,6 +131,8 @@ print('RMSE: {:.4}'.format(metric))
 # 130.0
 # 135.1
 # 89.87
+
+y_true['prediction'].hist(bins=100)
 
 #%% Важность признаков
 fi = pd.DataFrame(list(zip(df_X.columns[2:], model.feature_importances_)), columns=('clm', 'imp'))

@@ -104,6 +104,8 @@ def main():
                 metric = 0
 
             Result.append(PyResult(d, time.time() - start_time, metric))
+            # Для проверки 1 датасета
+            break
 
     Result = pd.DataFrame(Result)
     # Результирующий файл

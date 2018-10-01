@@ -60,6 +60,8 @@ def main(args):
             for col_name in df.columns
             if col_name.startswith('id')
         ]
+        # Есть ли 0 в target
+        model_config['is_null_target'] = df_y[df_y == 0].shape[0] > 0
         if len(datetime_columns) > 0 and len(id_columns) <= 0:
             model_config['is_work'] = True
         else:
@@ -68,6 +70,7 @@ def main(args):
         model_config['is_work'] = False
 
     print('is_work {}'.format(model_config['is_work']))
+    print('is_null_target {}'.format(model_config['is_null_target']))
 
     if model_config['is_work']:
         if is_big:
