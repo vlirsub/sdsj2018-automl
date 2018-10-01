@@ -90,30 +90,30 @@ metric = roc_auc_score(result_c['target'], result_c['prediction'])
 print('roc auc: {:.4}'.format(metric))
 
 # Теперь из тестовых данных надо классифицировать только те у которых target > 0
-X_values = df_X_r[used_columns].values
-X_test = df_test[used_columns][result_c['prediction'] > 0].values
-print('X_values shape {}'.format(X_values.shape)) # X_values shape (246, 39)
-print('X_test shape {}'.format(X_test.shape)) # X_test shape (115, 39)
-
-
-model = Ridge()
-model = LGBMRegressor(n_estimators=30)
-model.fit(X_values, df_y_r['target'])
-# Проноз
-prediction = model.predict(X_test)
-# Результат регрессии
-result_r = y_true_r.copy()
-result_r['prediction'] = prediction
-
-metric = mean_squared_error(result_r['target'], result_r['prediction'])
-print('RMSE: {:.4}'.format(metric))
-
-# Объединяем рельтат и считаем RMSE на всё наборе данных
-result = pd.merge(y_true, result_r[['prediction']], how='left', left_index=True, right_index=True)
-result['prediction'] = result['prediction'].fillna(0)
-
-metric = mean_squared_error(result['target'], result['prediction'])
-print('RMSE: {:.4}'.format(metric))
+# X_values = df_X_r[used_columns].values
+# X_test = df_test[used_columns][result_c['prediction'] > 0].values
+# print('X_values shape {}'.format(X_values.shape)) # X_values shape (246, 39)
+# print('X_test shape {}'.format(X_test.shape)) # X_test shape (115, 39)
+#
+#
+# model = Ridge()
+# model = LGBMRegressor(n_estimators=30)
+# model.fit(X_values, df_y_r['target'])
+# # Проноз
+# prediction = model.predict(X_test)
+# # Результат регрессии
+# result_r = y_true_r.copy()
+# result_r['prediction'] = prediction
+#
+# metric = mean_squared_error(result_r['target'], result_r['prediction'])
+# print('RMSE: {:.4}'.format(metric))
+#
+# # Объединяем рельтат и считаем RMSE на всё наборе данных
+# result = pd.merge(y_true, result_r[['prediction']], how='left', left_index=True, right_index=True)
+# result['prediction'] = result['prediction'].fillna(0)
+#
+# metric = mean_squared_error(result['target'], result['prediction'])
+# print('RMSE: {:.4}'.format(metric))
 # 196.6
 # 148.2
 # 123.9
@@ -125,14 +125,14 @@ print('X_values shape {}'.format(X_values.shape)) # X_values shape (365, 39)
 print('X_test shape {}'.format(X_test.shape)) # X_test shape (172, 39)
 
 model = Ridge()
-model = LGBMRegressor(n_estimators=30)
-model.fit(X_values, df_y['target'])
+#model = LGBMRegressor(n_estimators=100)
+model.fit(X_values, df_y['target'].interpolate().bfill())
 # Проноз
 prediction = model.predict(X_test)
 # Результат регрессии
 result = y_true.copy()
 
-result['prediction'] = prediction
+#result['prediction'] = prediction
 
 prediction[[result_c['prediction'] == 0]] = 0
 result['prediction'] = prediction
@@ -141,6 +141,16 @@ metric = mean_squared_error(result['target'], result['prediction'])
 print('RMSE: {:.4}'.format(metric))
 # 89.87
 #55.63
+#54.05
+
+plt.plot(df_y[df_y['target'] > 0])
+plt.plot(df_y)
+
+df_y[df_y == 0] = np.nan
+df_y['target'].interpolate()
+plt.plot(df_y)
+plt.plot(df_y['target'].interpolate())
+plt.plot(df_y['target'].fillna(0))
 
 df_X = transform_datetime_features(df_X)
 df_test = transform_datetime_features(df_test)
