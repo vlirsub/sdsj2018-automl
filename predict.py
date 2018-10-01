@@ -22,7 +22,7 @@ def main(args):
     print('Test Dataset read, shape {}'.format(df.shape))
     print('Dataset memory usage {:.3} MB'.format(df.memory_usage().sum() / 1024 / 1024))
     print('is_work {}'.format(model_config['is_work']))
-    
+
     if model_config['is_work']:
         if not model_config['is_big']:
             # features from datetime

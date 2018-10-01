@@ -7,6 +7,7 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 
+from sklearn.linear_model import Ridge, LogisticRegression
 from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.metrics import roc_auc_score, mean_squared_error
 from utils import transform_datetime_features
@@ -27,14 +28,24 @@ target_csv = os.path.join(fd, r'test-target.csv')
 df = pd.read_csv(train_csv)
 print('Dataset read, shape {}'.format(df.shape))
 print('Dataset memory usage {:.3} MB'.format(df.memory_usage().sum() / 1024 / 1024))
+df[df['target'] > 0] # 365 246 0.67
+
 df_test = pd.read_csv(test_csv)
 print('Test Dataset read, shape {}'.format(df.shape))
 y_true = pd.read_csv(target_csv)
+#y_true[y_true['target'] > 0] # 172 115 0.668
+y_true['target'] = (y_true['target'] > 0).astype(np.int8)
 
-df_y = df.target
+df_y = (df.target > 0).astype(np.int8)
 df_X = df.drop('target', axis=1)
 # Удаление line_id
 df_X = df_X.drop('line_id', axis=1)
+
+# Для регресси оставляем только определенные значения target
+
+
+# В начале классифицируем по признаку надо ли делать регресию или нет, target > 0
+
 
 df_X = transform_datetime_features(df_X)
 df_test = transform_datetime_features(df_test)
@@ -92,8 +103,12 @@ used_columns = [
 X_values = df_X[used_columns].values
 
 X_test = prepare(df_test[used_columns].copy()).values
+X_test = df_test[used_columns].values
 
-model = LGBMRegressor(n_estimators=30)
+model = LogisticRegression()
+
+model = Ridge()
+model = LGBMRegressor(n_estimators=50)
 model.fit(X_values, df_y)
 prediction = model.predict(X_test)
 y_true['prediction'] = prediction
@@ -102,6 +117,8 @@ metric = mean_squared_error(y_true['target'], y_true['prediction'])
 print('RMSE: {:.4}'.format(metric))
 # Отправлено 187.1521
 # 130.0
+# 135.1
+# 89.87
 
 #%% Важность признаков
 fi = pd.DataFrame(list(zip(df_X.columns[2:], model.feature_importances_)), columns=('clm', 'imp'))

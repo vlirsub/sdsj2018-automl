@@ -5,7 +5,7 @@ import pandas as pd
 import pickle
 import time
 
-#from sklearn.linear_model import Ridge, LogisticRegression
+from sklearn.linear_model import Ridge, LogisticRegression
 #from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 #from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from lightgbm import LGBMClassifier, LGBMRegressor
@@ -123,8 +123,8 @@ def main(args):
         # fitting
         model_config['mode'] = args.mode
         if args.mode == 'regression':
-            #model = Ridge()
-            model = LGBMRegressor(n_estimators=70)
+            model = Ridge()
+            #model = LGBMRegressor(n_estimators=70)
         else:
             #model = LogisticRegression()
             model = LGBMClassifier(n_estimators=70)
