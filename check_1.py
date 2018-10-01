@@ -48,27 +48,24 @@ df_X_c.shape # 365, 41
 
 # Для регрессии оставляем только заданные target
 df_X_r = df[df['target'] > 0].copy()
-
-y_true['target'] = (y_true['target'] > 0).astype(np.int8)
-y_true['target'].hist(bins=100)
-df['target'].hist(bins=100)
-
-df_y = df.target
-df_X = df.drop('target', axis=1)
-# Удаление line_id
-df_X = df_X.drop('line_id', axis=1)
-
-# Для регрессии оставляем только определенные значения target (> 0)
-df_X = df[df['target'] > 0].copy()
-df_y = df_X['target'].copy()
-df_X = df_X.drop('target', axis=1)
-
-df_test = pd.merge(df_test, y_true, on='line_id')
-df_test = df_test[df_test['target'] > 0]
-y_true = df_test[['target']]
-df_test = df_test.drop('target', axis=1)
+df_y_r = df_X_r[['target']].copy()
+df_X_r = df_X_r.drop('target', axis=1)
+df_X_r.shape # 246, 41
+df_y_r.shape # 246, 1
 
 # В начале классифицируем по признаку надо ли делать регресию или нет, target > 0
+used_columns = [
+    col_name
+    for col_name in df_X_c.columns
+    if col_name.startswith('number') or col_name.startswith('onehot')
+]
+X_values = df_X_c[used_columns].values
+X_test = df_test[used_columns].values
+print('X_values shape {}'.format(X_values.shape)) # X_values shape (365, 39)
+print('X_test shape {}'.format(X_test.shape)) # X_test shape (172, 39)
+
+model = LogisticRegression()
+
 
 
 df_X = transform_datetime_features(df_X)
