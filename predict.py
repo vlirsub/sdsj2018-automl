@@ -25,33 +25,22 @@ def main(args):
     print('is_null_target {}'.format(model_config['is_null_target']))
 
     if model_config['is_work']:
-        if not model_config['is_big']:
-            # features from datetime
-            df = transform_datetime_features(df)
+        if model_config['is_null_target']:
+            # filter columns
+            used_columns = model_config['used_columns']
 
-            # categorical encoding
-            for col_name, unique_values in model_config['categorical_values'].items():
-                for unique_value in unique_values:
-                    df['onehot_{}={}'.format(col_name, unique_value)] = (df[col_name] == unique_value).astype(int)
+            X_test = df[used_columns]
 
-        # missing values
-        if model_config['missing']:
-            df.fillna(-1, inplace=True)
-        elif any(df.isnull()):
-            df.fillna(value=df.mean(axis=0), inplace=True)
+            model_c = model_config['model_c']
+            model_r = model_config['model_r']
 
-        # filter columns
-        used_columns = model_config['used_columns']
+            # Проноз c
+            prediction_c = model_c.predict(X_test)
+            # Проноз r
+            prediction_r = model_r.predict(X_test)
 
-        # scale
-        #X_scaled = model_config['scaler'].transform(df[used_columns])
-        X_scaled = df[used_columns]
-
-        model = model_config['model']
-        if model_config['mode'] == 'regression':
-            df['prediction'] = model.predict(X_scaled)
-        elif model_config['mode'] == 'classification':
-            df['prediction'] = model.predict_proba(X_scaled)[:, 1]
+            prediction_r[prediction_c == 0] = 0
+            df['prediction'] = prediction_r
     else:
         df['prediction'] = 0
 
