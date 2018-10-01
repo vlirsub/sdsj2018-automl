@@ -37,6 +37,15 @@ y_true = pd.read_csv(target_csv)
 #
 
 # Для классификации составляем датасет из признаков есть target или нет
+df_X_c = df[df['target'] > 0].copy()
+df_X_c.shape # 246, 42
+
+df_y_c = df_X_c[['target']].copy()
+df_y_c['target'] = (df_y_c['target'] > 0).astype(np.int8)
+df_y_c.shape # 246, 1
+
+# Для регрессии оставляем только заданные target
+
 
 y_true['target'] = (y_true['target'] > 0).astype(np.int8)
 y_true['target'].hist(bins=100)
