@@ -98,9 +98,16 @@ prediction = model.predict(X_test)
 result_r = y_true_r.copy()
 result_r['prediction'] = prediction
 
-metric = mean_squared_error(y_true['target'], y_true['prediction'])
+metric = mean_squared_error(result_r['target'], result_r['prediction'])
 print('RMSE: {:.4}'.format(metric))
 
+# Объединяем рельтат и считаем RMSE на всё наборе данных
+result = pd.merge(y_true, result_r[['prediction']], how='left', left_index=True, right_index=True)
+result['prediction'] = result['prediction'].fillna(0)
+
+metric = mean_squared_error(result['target'], result['prediction'])
+print('RMSE: {:.4}'.format(metric))
+# 196.6
 
 df_X = transform_datetime_features(df_X)
 df_test = transform_datetime_features(df_test)
