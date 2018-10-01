@@ -51,7 +51,7 @@ def main(args):
     model_config['is_null_target'] = None
     model_config['is_datetime_columns'] = None
     model_config['is_id_columns'] = None
-    
+
     if args.mode == MODE_regression:
         # Есть ли колонки с датой
         datetime_columns = [
