@@ -88,20 +88,15 @@ def main(args):
         if model_config['is_null_target']:
             # Для классификации составляем датасет из признаков есть target или нет
             df_X_c = df.copy()
-            # df_X_c.shape  # 365, 42
             df_X_c['target'] = (df_X_c['target'] > 0).astype(np.int8)
-
             df_y_c = df_X_c[['target']].copy()
-            # df_y_c.shape  # 365, 1
             df_X_c = df_X_c.drop('target', axis=1)
-            # df_X_c.shape  # 365, 41
 
-            # Полный набор данных
+            # Полный набор данных дл регрессии
             df_X = df.copy()
             df_y = df_X[['target']].copy()
             df_X = df_X.drop('target', axis=1)
-            # df_X.shape  # 365, 41
-            # df_y.shape  # 365, 1
+
             # В начале классифицируем по признаку надо ли делать регресию или нет, target > 0
             used_columns = [
                 col_name

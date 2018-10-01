@@ -7,6 +7,7 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 
+from sklearn.linear_model import Ridge, LogisticRegression
 from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.metrics import roc_auc_score, mean_squared_error
 from utils import transform_datetime_features
@@ -21,8 +22,7 @@ train_csv = os.path.join(fd, r'train.csv')
 test_csv = os.path.join(fd, r'test.csv')
 # Правильные ответы
 target_csv = os.path.join(fd, r'test-target.csv')
-# Правильные ответы
-target_csv = os.path.join(fd, r'test-target.csv')
+
 
 df = pd.read_csv(train_csv)
 print('Dataset read, shape {}'.format(df.shape))
@@ -30,19 +30,29 @@ print('Dataset memory usage {:.3} MB'.format(df.memory_usage().sum() / 1024 / 10
 df_test = pd.read_csv(test_csv)
 print('Test Dataset read, shape {}'.format(df.shape))
 y_true = pd.read_csv(target_csv)
+y_true = y_true[df_test['id_0'] == 101]
 
 df_y = df.target
 df_X = df.drop('target', axis=1)
-# Удаление line_id
-df_X = df_X.drop('line_id', axis=1)
-
-df_test = df_test.drop('line_id', axis=1)
+df_X = df.copy()
 
 df_X = transform_datetime_features(df_X)
 df_test = transform_datetime_features(df_test)
 
 df_X.head()
 df_X.describe()
+
+df_X['id_0'].value_counts()
+
+df_X['id_0'].unique()
+df_u = df_X[df_X['id_0'] == 102]
+#df_u[['datetime_0', 'target']].plot()
+df_y = df_X[df_X['id_0'] == 102].target
+
+df_u_test = df_test[df_test['id_0'] == 102]
+
+df_u['target'].plot()
+y_true['target'].plot()
 
 # Удаление колонок с постоянными значениями
 constant_columns = [
@@ -54,13 +64,6 @@ df_X.drop(constant_columns, axis=1, inplace=True)
 
 ONEHOT_MAX_UNIQUE_VALUES = 20
 def prepare(df):
-    # преобразование колонок с малым количеством уникальных знчений в категории
-
-    for col_name in df.columns:
-        if col_name.startswith('number') or col_name.startswith('string') :
-            if df[col_name].unique().shape[0] < 32:
-                df[col_name] = df[col_name].astype('category').cat.codes
-
     categorical_values = {}
     for col_name in list(df.columns):
         col_unique_values = df[col_name].unique()
@@ -93,7 +96,7 @@ df_X.iloc[:, 41].value_counts().sort_values()
 # Посмотрим на зависимость целевой переменной от остальных
 #
 
-plt.scatter(df_X.iloc[:, 0], df_y)
+plt.scatter(df_u.iloc[:, 33], df_u['target'])
 plt.xlabel('x')
 plt.ylabel('target')
 
@@ -104,21 +107,27 @@ used_columns = [
     for col_name in df_X.columns
     if col_name.startswith('number') or col_name.startswith('onehot')
 ]
-X_values = df_X[used_columns].values
+X_values = df_u[used_columns].fillna(-1).values
 X_values = df_X.values
 
 X_test = prepare(df_test[used_columns].copy()).values
 X_test = prepare(df_test.copy()).values
+X_test = df_u_test[used_columns].fillna(-1).values
 
 model = LGBMRegressor(n_estimators=100)
+model = Ridge()
 model.fit(X_values, df_y)
 prediction = model.predict(X_test)
-y_true['prediction'] = prediction
+result = y_true.copy()
+result['prediction'] = prediction
 
-metric = mean_squared_error(y_true['target'], y_true['prediction'])
-print('RMSE: {:.4}'.format(metric))
-# Отправлено 1.6500
-#1.575
+metric = mean_squared_error(result['target'], result['prediction'])
+print('RMSE: {}'.format(metric))
+# Отправлено
+#1210754018
+#1204794882
+
+result['prediction'].plot()
 
 #%% Важность признаков
 fi = pd.DataFrame(list(zip(df_X.columns[2:], model.feature_importances_)), columns=('clm', 'imp'))

@@ -41,6 +41,7 @@ def main(args):
 
             #prediction_r[prediction_c == 0] = 0
             df['prediction'] = prediction_r
+            print(df.head(20))
     else:
         df['prediction'] = 0
 
