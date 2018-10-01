@@ -46,6 +46,9 @@ df_y_c.shape # 365, 1
 df_X_c = df_X_c.drop('target', axis=1)
 df_X_c.shape # 365, 41
 # Правильные ответы
+y_true_c = y_true.copy()
+y_true_c['target'] = (y_true_c['target'] > 0).astype(np.int8)
+y_true_c.shape # 172, 2
 
 # Для регрессии оставляем только заданные target
 df_X_r = df[df['target'] > 0].copy()
@@ -70,11 +73,18 @@ model.fit(X_values, df_y_c['target'])
 # Проноз
 prediction = model.predict(X_test)
 # Результат
-result = df_y_c.copy()
+result = y_true_c.copy()
 result['prediction'] = prediction
 
-metric = mean_squared_error(y_true['target'], y_true['prediction'])
-print('RMSE: {:.4}'.format(metric))
+metric = roc_auc_score(result['target'], result['prediction'])
+print('roc auc: {:.4}'.format(metric))
+
+# Теперь из тестовых данных надо классифицировать только те у которых target > 0
+X_values = df_X_r[used_columns].values
+X_test = df_test[used_columns].values
+print('X_values shape {}'.format(X_values.shape)) # X_values shape (365, 39)
+print('X_test shape {}'.format(X_test.shape)) # X_test shape (172, 39)
+
 
 
 df_X = transform_datetime_features(df_X)
