@@ -45,6 +45,7 @@ df_y_c = df_X_c[['target']].copy()
 df_y_c.shape # 365, 1
 df_X_c = df_X_c.drop('target', axis=1)
 df_X_c.shape # 365, 41
+# Правильные ответы
 
 # Для регрессии оставляем только заданные target
 df_X_r = df[df['target'] > 0].copy()
@@ -65,7 +66,15 @@ print('X_values shape {}'.format(X_values.shape)) # X_values shape (365, 39)
 print('X_test shape {}'.format(X_test.shape)) # X_test shape (172, 39)
 
 model = LogisticRegression()
+model.fit(X_values, df_y_c['target'])
+# Проноз
+prediction = model.predict(X_test)
+# Результат
+result = df_y_c.copy()
+result['prediction'] = prediction
 
+metric = mean_squared_error(y_true['target'], y_true['prediction'])
+print('RMSE: {:.4}'.format(metric))
 
 
 df_X = transform_datetime_features(df_X)
