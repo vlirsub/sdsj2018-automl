@@ -56,6 +56,9 @@ df_y_r = df_X_r[['target']].copy()
 df_X_r = df_X_r.drop('target', axis=1)
 df_X_r.shape # 246, 41
 df_y_r.shape # 246, 1
+# Правильные ответы
+y_true_r = y_true[y_true['target'] > 0].copy()
+y_true_r.shape # 115, 2
 
 # В начале классифицируем по признаку надо ли делать регресию или нет, target > 0
 used_columns = [
@@ -72,19 +75,31 @@ model = LogisticRegression()
 model.fit(X_values, df_y_c['target'])
 # Проноз
 prediction = model.predict(X_test)
-# Результат
-result = y_true_c.copy()
-result['prediction'] = prediction
+# Результат классификации
+result_c = y_true_c.copy()
+result_c['prediction'] = prediction
 
-metric = roc_auc_score(result['target'], result['prediction'])
+metric = roc_auc_score(result_c['target'], result_c['prediction'])
 print('roc auc: {:.4}'.format(metric))
 
 # Теперь из тестовых данных надо классифицировать только те у которых target > 0
 X_values = df_X_r[used_columns].values
-X_test = df_test[used_columns].values
-print('X_values shape {}'.format(X_values.shape)) # X_values shape (365, 39)
-print('X_test shape {}'.format(X_test.shape)) # X_test shape (172, 39)
+X_test = df_test[used_columns][result_c['prediction'] > 0].values
+print('X_values shape {}'.format(X_values.shape)) # X_values shape (246, 39)
+print('X_test shape {}'.format(X_test.shape)) # X_test shape (115, 39)
 
+
+model = Ridge()
+model = LGBMRegressor(n_estimators=50)
+model.fit(X_values, df_y_r['target'])
+# Проноз
+prediction = model.predict(X_test)
+# Результат регрессии
+result_r = y_true_r.copy()
+result_r['prediction'] = prediction
+
+metric = mean_squared_error(y_true['target'], y_true['prediction'])
+print('RMSE: {:.4}'.format(metric))
 
 
 df_X = transform_datetime_features(df_X)
