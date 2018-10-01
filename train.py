@@ -49,7 +49,9 @@ def main(args):
     model_config['is_big'] = is_big
     print('is_big {}'.format(is_big))
     model_config['is_null_target'] = None
-
+    model_config['is_datetime_columns'] = None
+    model_config['is_id_columns'] = None
+    
     if args.mode == MODE_regression:
         # Есть ли колонки с датой
         datetime_columns = [
@@ -65,11 +67,18 @@ def main(args):
         ]
         # Есть ли 0 в target
         model_config['is_null_target'] = df_y[df_y == 0].shape[0] > 0
+        # Есть ли колонки со временем
+        model_config['is_datetime_columns'] = len(datetime_columns) > 0
+        # Есть ли колонки с ИД
+        model_config['is_id_columns'] = len(id_columns) > 0
+
         if len(datetime_columns) > 0 and len(id_columns) <= 0:
             model_config['is_work'] = True
         else:
             model_config['is_work'] = False
         print('is_null_target {}'.format(model_config['is_null_target']))
+        print('is_datetime_columns {}'.format(model_config['is_datetime_columns']))
+        print('is_id_columns {}'.format(model_config['is_id_columns']))
     else:
         model_config['is_work'] = False
 
