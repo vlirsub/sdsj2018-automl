@@ -49,7 +49,7 @@ def main(args):
     model_config['is_big'] = is_big
     print('is_big {}'.format(is_big))
     model_config['is_null_target'] = None
-    
+
     if args.mode == MODE_regression:
         # Есть ли колонки с датой
         datetime_columns = [

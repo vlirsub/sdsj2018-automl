@@ -39,7 +39,7 @@ def main(args):
             # Проноз r
             prediction_r = model_r.predict(X_test)
 
-            prediction_r[prediction_c == 0] = 0
+            #prediction_r[prediction_c == 0] = 0
             df['prediction'] = prediction_r
     else:
         df['prediction'] = 0
