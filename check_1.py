@@ -60,6 +60,13 @@ df_y_r.shape # 246, 1
 y_true_r = y_true[y_true['target'] > 0].copy()
 y_true_r.shape # 115, 2
 
+# Полный набор данных
+df_X = df.copy()
+df_y = df_X[['target']].copy()
+df_X = df_X.drop('target', axis=1)
+df_X.shape # 365, 41
+df_y.shape # 365, 1
+
 # В начале классифицируем по признаку надо ли делать регресию или нет, target > 0
 used_columns = [
     col_name
@@ -90,7 +97,7 @@ print('X_test shape {}'.format(X_test.shape)) # X_test shape (115, 39)
 
 
 model = Ridge()
-model = LGBMRegressor(n_estimators=50)
+model = LGBMRegressor(n_estimators=30)
 model.fit(X_values, df_y_r['target'])
 # Проноз
 prediction = model.predict(X_test)
@@ -108,6 +115,32 @@ result['prediction'] = result['prediction'].fillna(0)
 metric = mean_squared_error(result['target'], result['prediction'])
 print('RMSE: {:.4}'.format(metric))
 # 196.6
+# 148.2
+# 123.9
+
+# Обучение на полном наборе данных
+X_values = df_X[used_columns].values
+X_test = df_test[used_columns].values
+print('X_values shape {}'.format(X_values.shape)) # X_values shape (365, 39)
+print('X_test shape {}'.format(X_test.shape)) # X_test shape (172, 39)
+
+model = Ridge()
+model = LGBMRegressor(n_estimators=30)
+model.fit(X_values, df_y['target'])
+# Проноз
+prediction = model.predict(X_test)
+# Результат регрессии
+result = y_true.copy()
+
+result['prediction'] = prediction
+
+prediction[[result_c['prediction'] == 0]] = 0
+result['prediction'] = prediction
+
+metric = mean_squared_error(result['target'], result['prediction'])
+print('RMSE: {:.4}'.format(metric))
+# 89.87
+#55.63
 
 df_X = transform_datetime_features(df_X)
 df_test = transform_datetime_features(df_test)
