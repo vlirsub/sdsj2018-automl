@@ -43,6 +43,7 @@ def main(args):
 
     # dict with data necessary to make predictions
     model_config = {}
+    model_config['mode'] = args.mode
     model_config['categorical_values'] = {}
     model_config['is_big'] = is_big
     print('is_big {}'.format(is_big))
@@ -73,67 +74,43 @@ def main(args):
     print('is_null_target {}'.format(model_config['is_null_target']))
 
     if model_config['is_work']:
-        if is_big:
-            # missing values
-            if any(df_X.isnull()):
-                model_config['missing'] = True
-                df_X.fillna(-1, inplace=True)
+        if model_config['is_null_target']:
+            # Для классификации составляем датасет из признаков есть target или нет
+            df_X_c = df.copy()
+            #df_X_c.shape  # 365, 42
+            df_X_c['target'] = (df_X_c['target'] > 0).astype(np.int8)
 
-            new_feature_count = min(df_X.shape[1],
-                                    int(df_X.shape[1] / (df_X.memory_usage().sum() / BIG_DATASET_SIZE)))
-            # take only high correlated features
-            correlations = np.abs([
-                np.corrcoef(df_y, df_X[col_name])[0, 1]
-                for col_name in df_X.columns if col_name.startswith('number')
-            ])
-            new_columns = df_X.columns[np.argsort(correlations)[-new_feature_count:]]
-            df_X = df_X[new_columns]
+            df_y_c = df_X_c[['target']].copy()
+            #df_y_c.shape  # 365, 1
+            df_X_c = df_X_c.drop('target', axis=1)
+            #df_X_c.shape  # 365, 41
 
-        else:
-            # features from datetime
+            # Полный набор данных
+            df_X = df.copy()
+            df_y = df_X[['target']].copy()
+            df_X = df_X.drop('target', axis=1)
+            #df_X.shape  # 365, 41
+            #df_y.shape  # 365, 1
+            # В начале классифицируем по признаку надо ли делать регресию или нет, target > 0
+            used_columns = [
+                col_name
+                for col_name in df_X_c.columns
+                if col_name.startswith('number') or col_name.startswith('onehot')
+            ]
+            X_values = df_X_c[used_columns].values
 
-            df_X = transform_datetime_features(df_X)
+            model_c = LogisticRegression()
+            model_c.fit(X_values, df_y_c['target'])
+            model_config['model_c'] = model_c
 
-            # categorical encoding
-            categorical_values = {}
-            for col_name in list(df_X.columns):
-                col_unique_values = df_X[col_name].unique()
-                if 2 < len(col_unique_values) <= ONEHOT_MAX_UNIQUE_VALUES:
-                    categorical_values[col_name] = col_unique_values
-                    for unique_value in col_unique_values:
-                        df_X['onehot_{}={}'.format(col_name, unique_value)] = (df_X[col_name] == unique_value).astype(int)
-            model_config['categorical_values'] = categorical_values
+            # Обучение на полном наборе данных для регрессии
+            X_values = df_X[used_columns].values
 
-            # missing values
-            if any(df_X.isnull()):
-                model_config['missing'] = True
-                df_X.fillna(-1, inplace=True)
+            model_r = Ridge()
+            model_r.fit(X_values, df_y['target'].interpolate().bfill())
 
-        # use only numeric columns
-        used_columns = [
-            col_name
-            for col_name in df_X.columns
-            if col_name.startswith('number') or col_name.startswith('onehot')
-        ]
-        df_X = df_X[used_columns].values
-        model_config['used_columns'] = used_columns
-
-        # scaling
-        #scaler = StandardScaler(copy=False)
-        #df_X = scaler.fit_transform(df_X)
-        #model_config['scaler'] = scaler
-
-        # fitting
-        model_config['mode'] = args.mode
-        if args.mode == 'regression':
-            model = Ridge()
-            #model = LGBMRegressor(n_estimators=70)
-        else:
-            #model = LogisticRegression()
-            model = LGBMClassifier(n_estimators=70)
-
-        model.fit(df_X, df_y)
-        model_config['model'] = model
+            model_config['used_columns'] = used_columns
+            model_config['model_r'] = model_r
 
     model_config_filename = os.path.join(args.model_dir, 'model_config.pkl')
     with open(model_config_filename, 'wb') as fout:

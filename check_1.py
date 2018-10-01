@@ -11,6 +11,7 @@ from sklearn.linear_model import Ridge, LogisticRegression
 from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.metrics import roc_auc_score, mean_squared_error
 #from utils import transform_datetime_features
+from sklearn.preprocessing import PolynomialFeatures
 
 # Директория с данными
 DATA_DIR = r'm:\tmp\SB'
@@ -151,6 +152,8 @@ df_y['target'].interpolate()
 plt.plot(df_y)
 plt.plot(df_y['target'].interpolate())
 plt.plot(df_y['target'].fillna(0))
+
+
 
 df_X = transform_datetime_features(df_X)
 df_test = transform_datetime_features(df_test)
