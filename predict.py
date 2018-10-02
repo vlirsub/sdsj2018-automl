@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import pandas as pd
 import pickle
 import time
@@ -41,7 +42,7 @@ def main(args):
 
             #prediction_r[prediction_c == 0] = 0
             df['prediction'] = prediction_r
-            print(df.head(20))
+            df[['line_id', 'prediction']].to_csv(sys.stderr, index=False)
     else:
         df['prediction'] = 0
 
