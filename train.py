@@ -9,6 +9,9 @@ from sklearn.linear_model import Ridge, LogisticRegression
 #from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 #from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from lightgbm import LGBMClassifier, LGBMRegressor
+from sklearn.metrics import roc_auc_score, mean_squared_error
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
 
 from sklearn.preprocessing import StandardScaler
 
@@ -19,9 +22,6 @@ TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5*60))
 ONEHOT_MAX_UNIQUE_VALUES = 20
 BIG_DATASET_SIZE = 500 * 1024 * 1024
 
-MODE_classification = r'classification'
-MODE_regression = r'regression'
-
 def main(args):
     start_time = time.time()
 
@@ -31,7 +31,6 @@ def main(args):
     is_big = df_X.memory_usage().sum() > BIG_DATASET_SIZE
 
     print('Dataset read, shape {}'.format(df_X.shape))
-    print('Dataset memory usage {:.3} MB'.format(df.memory_usage().sum() / 1024 / 1024))
 
     # drop constant features
     constant_columns = [
@@ -45,109 +44,93 @@ def main(args):
     model_config = {}
     model_config['categorical_values'] = {}
     model_config['is_big'] = is_big
-    print('is_big {}'.format(is_big))
-    model_config['is_null_taget'] = None
 
-    if args.mode == MODE_regression:
-        # Есть ли колонки с датой
-        datetime_columns = [
-            col_name
-            for col_name in df.columns
-            if col_name.startswith('datetime')
-        ]
-        # Есть ли колонки с id
-        id_columns = [
-            col_name
-            for col_name in df.columns
-            if col_name.startswith('id')
-        ]
-        # Есть ли 0 в target
-        model_config['is_null_taget'] = df_y[df_y == 0].shape[0] > 0
-        print('is_null_taget {}'.format(model_config['is_null_taget']))
+    if is_big:
+        # missing values
+        if any(df_X.isnull()):
+            model_config['missing'] = True
+            df_X.fillna(-1, inplace=True)
 
-        if len(datetime_columns) > 0 and len(id_columns) <= 0:
-            model_config['is_work'] = True
-        else:
-            model_config['is_work'] = False
+        new_feature_count = min(df_X.shape[1],
+                                int(df_X.shape[1] / (df_X.memory_usage().sum() / BIG_DATASET_SIZE)))
+        # take only high correlated features
+        correlations = np.abs([
+            np.corrcoef(df_y, df_X[col_name])[0, 1]
+            for col_name in df_X.columns if col_name.startswith('number')
+        ])
+        new_columns = df_X.columns[np.argsort(correlations)[-new_feature_count:]]
+        df_X = df_X[new_columns]
+
     else:
-        model_config['is_work'] = False
+        # features from datetime
+        df_X = transform_datetime_features(df_X)
 
-    print('is_work {}'.format(model_config['is_work']))
+        # categorical encoding
+        categorical_values = {}
+        for col_name in list(df_X.columns):
+            col_unique_values = df_X[col_name].unique()
+            if 2 < len(col_unique_values) <= ONEHOT_MAX_UNIQUE_VALUES:
+                categorical_values[col_name] = col_unique_values
+                for unique_value in col_unique_values:
+                    df_X['onehot_{}={}'.format(col_name, unique_value)] = (df_X[col_name] == unique_value).astype(int)
+        model_config['categorical_values'] = categorical_values
 
-    if model_config['is_work']:
-        if is_big:
-            # missing values
-            if any(df_X.isnull()):
-                model_config['missing'] = True
-                df_X.fillna(-1, inplace=True)
+        # missing values
+        if any(df_X.isnull()):
+            model_config['missing'] = True
+            df_X.fillna(-1, inplace=True)
 
-            new_feature_count = min(df_X.shape[1],
-                                    int(df_X.shape[1] / (df_X.memory_usage().sum() / BIG_DATASET_SIZE)))
-            # take only high correlated features
-            correlations = np.abs([
-                np.corrcoef(df_y, df_X[col_name])[0, 1]
-                for col_name in df_X.columns if col_name.startswith('number')
-            ])
-            new_columns = df_X.columns[np.argsort(correlations)[-new_feature_count:]]
-            df_X = df_X[new_columns]
+    # use only numeric columns
+    used_columns = [
+        col_name
+        for col_name in df_X.columns
+        if col_name.startswith('number') or col_name.startswith('onehot')
+    ]
+    model_config['used_columns'] = used_columns
 
-        else:
-            # features from datetime
+    X_train = df_X[used_columns].values
+    y_train = df_y.values
+    # scaling
+    #scaler = StandardScaler(copy=False)
+    #df_X = scaler.fit_transform(df_X)
+    #model_config['scaler'] = scaler
 
-            df_X = transform_datetime_features(df_X)
+    # fitting
+    model_config['mode'] = args.mode
+    if args.mode == 'regression':
+        #model = Ridge()
+        #model.fit(X_train, y_train)
+        # prediction = model.predict(X_train)
+        # RMSE = mean_squared_error(y_train, prediction)
+        # print('RMSE Ridge {}'.format(RMSE))
 
-            #categorical encoding
-            categorical_values = {}
-            for col_name in list(df_X.columns):
-                col_unique_values = df_X[col_name].unique()
-                if 2 < len(col_unique_values) <= ONEHOT_MAX_UNIQUE_VALUES:
-                    categorical_values[col_name] = col_unique_values
-                    for unique_value in col_unique_values:
-                        df_X['onehot_{}={}'.format(col_name, unique_value)] = (df_X[col_name] == unique_value).astype(int)
-            model_config['categorical_values'] = categorical_values
-            print('categorical_values {}'.format(categorical_values))
+        #model = LGBMRegressor(n_estimators=70)
+        #model.fit(X_train, y_train)
+        #prediction = model.predict(X_train)
+        #RMSE = mean_squared_error(y_train, prediction)
+        #print('RMSE LGBMRegressor {}'.format(RMSE))
 
-            # missing values
-            if any(df_X.isnull()):
-                model_config['missing'] = True
-                df_X.fillna(-1, inplace=True)
+        # Подбор модели
+        Scores = list()
+        for model in [Ridge(), LGBMRegressor(n_estimators=70)]:
+            model.fit(X_train, y_train)
+            kfold = KFold(n_splits=5, shuffle=True, random_state=0)
+            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='neg_mean_squared_error', verbose=0)
 
-        # use only numeric columns
-        used_columns = [
-            col_name
-            for col_name in df_X.columns
-            if col_name.startswith('number') or col_name.startswith('onehot')
-        ]
-        model_config['used_columns'] = used_columns
-        print('used_columns {}'.format(used_columns))
+            print('X {} y {} score: {} mean: {}'.format(X_train.shape, y_train.shape, score.round(2), score.mean()))
+            Scores.append((abs(score.mean()), model))
+        Scores.sort(key=lambda k : k[0])
 
-        # Данные для обучения
-        X_values = df_X[used_columns].values
+        model = Scores[0][1]
+        print(Scores)
 
-        # scaling
-        #scaler = StandardScaler(copy=False)
-        #df_X = scaler.fit_transform(df_X)
-        #model_config['scaler'] = scaler
+    else:
+        #model = LogisticRegression()
+        model = LGBMClassifier(n_estimators=70)
+        model.fit(X_train, y_train)
 
-        # fitting
-        model_config['mode'] = args.mode
-        if args.mode == 'regression':
-            model = Ridge()
-            #model = LGBMRegressor(n_estimators=70)
-            # Данные для классификации
-            df_y_c = df_y.copy()
-            df_y_c = (df_y_c > 0).astype(np.int8)
-            model_c = LogisticRegression()
-            model_c.fit(X_values, df_y_c)
-            model_config['model_c'] = model_c
-        else:
-            #model = LogisticRegression()
-            model = LGBMClassifier(n_estimators=70)
 
-        model.fit(X_values, df_y)
-        model_config['model'] = model
-
-        # RMSE: 113.1 86.21
+    model_config['model'] = model
 
     model_config_filename = os.path.join(args.model_dir, 'model_config.pkl')
     with open(model_config_filename, 'wb') as fout:
