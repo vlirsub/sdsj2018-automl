@@ -8,7 +8,10 @@ import time
 from utils import transform_datetime_features
 
 # use this to stop the algorithm before time limit exceeds
-TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5*60))
+TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5 * 60))
+MODE_classification = r'classification'
+MODE_regression = r'regression'
+
 
 def main(args):
     start_time = time.time()
@@ -23,26 +26,47 @@ def main(args):
     print('Test Dataset read, shape {}'.format(df.shape))
     print('Dataset memory usage {:.3} MB'.format(df.memory_usage().sum() / 1024 / 1024))
     print('is_work {}'.format(model_config['is_work']))
-    print('is_null_target {}'.format(model_config['is_null_target']))
+    print('is_null_taget {}'.format(model_config['is_null_taget']))
 
     if model_config['is_work']:
-        if model_config['is_null_target']:
-            # filter columns
-            used_columns = model_config['used_columns']
+        if not model_config['is_big']:
+            # features from datetime
+            df = transform_datetime_features(df)
 
-            X_test = df[used_columns]
+            # categorical encoding
+            for col_name, unique_values in model_config['categorical_values'].items():
+                for unique_value in unique_values:
+                    df['onehot_{}={}'.format(col_name, unique_value)] = (df[col_name] == unique_value).astype(int)
 
+        # missing values
+        if model_config['missing']:
+            df.fillna(-1, inplace=True)
+        elif any(df.isnull()):
+            df.fillna(value=df.mean(axis=0), inplace=True)
+
+        # filter columns
+        used_columns = model_config['used_columns']
+
+        # scale
+        # X_scaled = model_config['scaler'].transform(df[used_columns])
+        X_scaled = df[used_columns]
+
+        model = model_config['model']
+        if model_config['mode'] == MODE_regression:
+            predict = model.predict(X_scaled)
+            # Классификация ответов
             model_c = model_config['model_c']
-            model_r = model_config['model_r']
+            predict_c = model_c.predict(X_scaled)
+            #print(predict_c)
+            predict[predict_c == 0] = 0
+            df['prediction'] = predict
+            #RMSE: 130.2
+        elif model_config['mode'] == MODE_classification:
+            df['prediction'] = model.predict_proba(X_scaled)[:, 1]
+        else:
+            raise Exception('Ошибочный тип модели {}'.format(model_config['mode']))
 
-            # Проноз c
-            prediction_c = model_c.predict(X_test)
-            # Проноз r
-            prediction_r = model_r.predict(X_test)
-
-            #prediction_r[prediction_c == 0] = 0
-            df['prediction'] = prediction_r
-            df[['line_id', 'prediction']].to_csv(sys.stderr, index=False)
+        # df[['line_id', 'prediction']].to_csv(sys.stderr, index=False)
     else:
         df['prediction'] = 0
 
@@ -50,6 +74,7 @@ def main(args):
 
     print('Prediction time: {}'.format(time.time() - start_time))
     return 0
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -59,5 +84,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args)
-
-
