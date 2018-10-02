@@ -6,21 +6,26 @@ import pickle
 import time
 
 from sklearn.linear_model import Ridge, LogisticRegression
-#from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-#from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
+# from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+# from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.metrics import roc_auc_score, mean_squared_error
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
+from sklearn.pipeline import make_pipeline
 
 from sklearn.preprocessing import StandardScaler
 
 from utils import transform_datetime_features
 
 # use this to stop the algorithm before time limit exceeds
-TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5*60))
+TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5 * 60))
 ONEHOT_MAX_UNIQUE_VALUES = 20
 BIG_DATASET_SIZE = 500 * 1024 * 1024
+
+MODE_classification = r'classification'
+MODE_regression = r'regression'
+
 
 def main(args):
     start_time = time.time()
@@ -91,44 +96,45 @@ def main(args):
     X_train = df_X[used_columns].values
     y_train = df_y.values
     # scaling
-    #scaler = StandardScaler(copy=False)
-    #df_X = scaler.fit_transform(df_X)
-    #model_config['scaler'] = scaler
+    # scaler = StandardScaler(copy=False)
+    # X_train = scaler.fit_transform(X_train)
+    # model_config['scaler'] = scaler
 
     # fitting
     model_config['mode'] = args.mode
-    if args.mode == 'regression':
-        #model = Ridge()
-        #model.fit(X_train, y_train)
-        # prediction = model.predict(X_train)
-        # RMSE = mean_squared_error(y_train, prediction)
-        # print('RMSE Ridge {}'.format(RMSE))
-
-        #model = LGBMRegressor(n_estimators=70)
-        #model.fit(X_train, y_train)
-        #prediction = model.predict(X_train)
-        #RMSE = mean_squared_error(y_train, prediction)
-        #print('RMSE LGBMRegressor {}'.format(RMSE))
-
+    if args.mode == MODE_regression:
         # Подбор модели
         Scores = list()
-        for model in [Ridge(), LGBMRegressor(n_estimators=70)]:
+        model0 = make_pipeline(StandardScaler(), Ridge())
+        for model in [model0, Ridge(), LGBMRegressor(n_estimators=70), LGBMRegressor(n_estimators=50),
+                      LGBMRegressor(n_estimators=100)]:
             model.fit(X_train, y_train)
             kfold = KFold(n_splits=5, shuffle=True, random_state=0)
-            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='neg_mean_squared_error', verbose=0)
+            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='neg_mean_squared_error',
+                                    verbose=0)
 
-            print('X {} y {} score: {} mean: {}'.format(X_train.shape, y_train.shape, score.round(2), score.mean()))
             Scores.append((abs(score.mean()), model))
-        Scores.sort(key=lambda k : k[0])
+        Scores.sort(key=lambda k: k[0])
 
         model = Scores[0][1]
-        print(Scores)
-
     else:
-        #model = LogisticRegression()
-        model = LGBMClassifier(n_estimators=70)
-        model.fit(X_train, y_train)
+        # model = LogisticRegression()
+        # model = LGBMClassifier(n_estimators=70)
+        # model.fit(X_train, y_train)
+        # Подбор модели
+        Scores = list()
+        # model0 = make_pipeline(StandardScaler(), Ridge())
+        for model in [LGBMClassifier(n_estimators=50), LGBMClassifier(n_estimators=70),
+                      LGBMClassifier(n_estimators=100)]:
+            model.fit(X_train, y_train)
+            kfold = KFold(n_splits=5, shuffle=True, random_state=0)
+            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='roc_auc',
+                                    verbose=0)
 
+            Scores.append((abs(score.mean()), model))
+        Scores.sort(key=lambda k: k[0])
+
+        model = Scores[0][1]
 
     model_config['model'] = model
 
@@ -138,6 +144,7 @@ def main(args):
 
     print('Train time: {}'.format(time.time() - start_time))
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train-csv', type=argparse.FileType('r'), required=True)
@@ -146,6 +153,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args)
-
-
-

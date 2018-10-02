@@ -9,6 +9,9 @@ from utils import transform_datetime_features
 # use this to stop the algorithm before time limit exceeds
 TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5*60))
 
+MODE_classification = r'classification'
+MODE_regression = r'regression'
+
 def main(args):
     start_time = time.time()
 
@@ -44,9 +47,9 @@ def main(args):
     X_scaled = df[used_columns]
 
     model = model_config['model']
-    if model_config['mode'] == 'regression':
+    if model_config['mode'] == MODE_regression:
         df['prediction'] = model.predict(X_scaled)
-    elif model_config['mode'] == 'classification':
+    elif model_config['mode'] == MODE_classification:
         df['prediction'] = model.predict_proba(X_scaled)[:, 1]
 
     df[['line_id', 'prediction']].to_csv(args.prediction_csv, index=False)
