@@ -49,6 +49,7 @@ def main(args):
     model_config = {}
     model_config['categorical_values'] = {}
     model_config['is_big'] = is_big
+    print('is_big {}'.format(model_config['is_big']))
 
     if is_big:
         # missing values
@@ -92,6 +93,7 @@ def main(args):
         if col_name.startswith('number') or col_name.startswith('onehot')
     ]
     model_config['used_columns'] = used_columns
+    print('used_columns {}'.format(used_columns))
 
     X_train = df_X[used_columns].values
     y_train = df_y.values
@@ -110,7 +112,7 @@ def main(args):
                       LGBMRegressor(n_estimators=100)]:
             model.fit(X_train, y_train)
             kfold = KFold(n_splits=5, shuffle=True, random_state=0)
-            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='neg_mean_squared_error',
+            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=4, scoring='neg_mean_squared_error',
                                     verbose=0)
 
             Scores.append((abs(score.mean()), model))
@@ -128,7 +130,7 @@ def main(args):
                       LGBMClassifier(n_estimators=100)]:
             model.fit(X_train, y_train)
             kfold = KFold(n_splits=5, shuffle=True, random_state=0)
-            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='roc_auc',
+            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=4, scoring='roc_auc',
                                     verbose=0)
 
             Scores.append((abs(score.mean()), model))
