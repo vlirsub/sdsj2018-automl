@@ -50,7 +50,7 @@ def main():
     Result = list()
 
     dirs = os.listdir(DATA_DIR)
-    for d in dirs:
+    for d in dirs[0:]:
         fd = os.path.join(DATA_DIR, d)
         if os.path.isdir(fd):
             start_time = time.time()

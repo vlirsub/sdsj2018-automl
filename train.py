@@ -84,58 +84,148 @@ def main(args):
         # missing values
         if any(df_X.isnull()):
             model_config['missing'] = True
-            df_X.fillna(-1, inplace=True)
+            df_X = df_X.fillna(-1)
 
-    # use only numeric columns
-    used_columns = [
+    # drop constant features
+    constant_columns = [
         col_name
         for col_name in df_X.columns
-        if col_name.startswith('number') or col_name.startswith('onehot')
+        if df_X[col_name].nunique() == 1
     ]
-    model_config['used_columns'] = used_columns
-    print('used_columns {}'.format(used_columns))
-
-    X_train = df_X[used_columns].values
-    y_train = df_y.values
-    # scaling
-    # scaler = StandardScaler(copy=False)
-    # X_train = scaler.fit_transform(X_train)
-    # model_config['scaler'] = scaler
+    df_X.drop(constant_columns, axis=1, inplace=True)
 
     # fitting
     model_config['mode'] = args.mode
     if args.mode == MODE_regression:
-        # Подбор модели
-        Scores = list()
-        model0 = make_pipeline(StandardScaler(), Ridge())
-        for model in [model0, Ridge(), LGBMRegressor(n_estimators=70), LGBMRegressor(n_estimators=50),
-                      LGBMRegressor(n_estimators=100)]:
-            model.fit(X_train, y_train)
-            kfold = KFold(n_splits=5, shuffle=True, random_state=0)
-            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=4, scoring='neg_mean_squared_error',
-                                    verbose=0)
+        # use only numeric columns
+        used_columns0 = [
+            col_name
+            for col_name in df_X.columns
+            if col_name.startswith('number') or col_name.startswith('dt')  or col_name.startswith('onehot')
+        ]
 
-            Scores.append((abs(score.mean()), model))
+        used_columns1 = [
+            col_name
+            for col_name in df_X.columns
+            if col_name.startswith('number')
+        ]
+
+        used_columns2 = [
+            col_name
+            for col_name in df_X.columns
+            if col_name.startswith('number') or col_name.startswith('dt')
+        ]
+
+        used_columns3 = [
+            col_name
+            for col_name in df_X.columns
+            if col_name.startswith('number') or col_name.startswith('onehot')
+        ]
+
+        Scores = list()
+
+        for used_columns in [used_columns0, used_columns1, used_columns2, used_columns3]:
+
+            print('used_columns {}'.format(used_columns))
+
+            X_train = df_X[used_columns].values
+            y_train = df_y.values
+
+            # Подбор модели
+            for model in [Ridge(),
+                          #make_pipeline(StandardScaler(), Ridge()),
+                          # LGBMRegressor(n_estimators=50, n_jobs=-1),
+                          LGBMRegressor(n_estimators=100, n_jobs=-1)
+                          ]:
+                model.fit(X_train, y_train)
+                kfold = KFold(n_splits=3, shuffle=True, random_state=0)
+                score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='neg_mean_squared_error',
+                                        verbose=0)
+
+                Scores.append((abs(score.mean()), model, used_columns))
+                print('score {:.4}'.format(score.mean()))
+                print('Train time: {}'.format(time.time() - start_time))
         Scores.sort(key=lambda k: k[0])
 
+        model_config['used_columns'] = Scores[0][2]
         model = Scores[0][1]
     else:
-        # model = LogisticRegression()
-        # model = LGBMClassifier(n_estimators=70)
-        # model.fit(X_train, y_train)
+        # use only numeric columns
+        # used_columns = [
+        #     col_name
+        #     for col_name in df_X.columns
+        #     if col_name.startswith('number') or col_name.startswith('dt')  # or col_name.startswith('onehot')
+        # ]
+        # model_config['used_columns'] = used_columns
+        # print('used_columns {}'.format(used_columns))
+        #
+        # X_train = df_X[used_columns].values
+        # y_train = df_y.values
+
+        used_columns0 = [
+            col_name
+            for col_name in df_X.columns
+            if col_name.startswith('number') or col_name.startswith('dt') or col_name.startswith('onehot')
+        ]
+
+        used_columns1 = [
+            col_name
+            for col_name in df_X.columns
+            if col_name.startswith('number')
+        ]
+
+        used_columns2 = [
+            col_name
+            for col_name in df_X.columns
+            if col_name.startswith('number') or col_name.startswith('dt')
+        ]
+
+        used_columns3 = [
+            col_name
+            for col_name in df_X.columns
+            if col_name.startswith('number') or col_name.startswith('onehot')
+        ]
+
         # Подбор модели
+        # Scores = list()
+        # for model in [#make_pipeline(StandardScaler(), LogisticRegression(solver='sag', n_jobs=-1)),
+        #               #LogisticRegression(solver='sag', n_jobs=-1),
+        #               # LGBMClassifier(n_estimators=50, n_jobs=-1),
+        #               LGBMClassifier(n_estimators=100, n_jobs=-1)]:
+        #     model.fit(X_train, y_train)
+        #     kfold = KFold(n_splits=3, shuffle=True, random_state=0)
+        #     score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='roc_auc',
+        #                             verbose=0)
+        #
+        #     Scores.append((abs(score.mean()), model))
+        #     print('score {:.4}'.format(score.mean()))
+        #     print('Train time: {}'.format(time.time() - start_time))
+        #
+        # Scores.sort(key=lambda k: k[0], reverse=True)
+        #
+        # model = Scores[0][1]
+        # model = LGBMClassifier(n_estimators=100, n_jobs=-1)
+        # model.fit(X_train, y_train)
+        #
+
         Scores = list()
-        # model0 = make_pipeline(StandardScaler(), Ridge())
-        for model in [LGBMClassifier(n_estimators=50), LGBMClassifier(n_estimators=70),
-                      LGBMClassifier(n_estimators=100)]:
+        for used_columns in [used_columns0, used_columns1, used_columns2, used_columns3]:
+            print('used_columns {}'.format(used_columns))
+
+            X_train = df_X[used_columns].values
+            y_train = df_y.values
+
+            model = LGBMClassifier(n_estimators=200, n_jobs=-1)
             model.fit(X_train, y_train)
-            kfold = KFold(n_splits=5, shuffle=True, random_state=0)
-            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=4, scoring='roc_auc',
+            kfold = KFold(n_splits=3, shuffle=True, random_state=0)
+            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='roc_auc',
                                     verbose=0)
 
-            Scores.append((abs(score.mean()), model))
-        Scores.sort(key=lambda k: k[0])
+            Scores.append((abs(score.mean()), model, used_columns))
 
+        Scores.sort(key=lambda k: k[0], reverse=True)
+
+        model_config['used_columns'] = Scores[0][2]
         model = Scores[0][1]
 
     model_config['model'] = model

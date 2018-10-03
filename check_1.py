@@ -71,7 +71,7 @@ df_y.shape # 365, 1
 # В начале классифицируем по признаку надо ли делать регресию или нет, target > 0
 used_columns = [
     col_name
-    for col_name in df_X_c.columns
+    for col_name in df_X.columns
     if col_name.startswith('number') or col_name.startswith('onehot')
 ]
 X_values = df_X_c[used_columns].values
@@ -127,7 +127,8 @@ print('X_test shape {}'.format(X_test.shape)) # X_test shape (172, 39)
 
 model = Ridge()
 #model = LGBMRegressor(n_estimators=100)
-model.fit(X_values, df_y['target'].interpolate().bfill())
+#model.fit(X_values, df_y['target'].interpolate().bfill())
+model.fit(X_values, df_y['target'])
 # Проноз
 prediction = model.predict(X_test)
 # Результат регрессии
