@@ -51,8 +51,9 @@ df_y = df_X[df_X['id_0'] == 102].target
 
 df_u_test = df_test[df_test['id_0'] == 102]
 
-df_u['target'].plot()
-y_true['target'].plot()
+plt.plot(df_u['datetime_0'], df_u['target'])
+plt.plot(df_u_test['datetime_0'], y_true['target'])
+
 
 # Удаление колонок с постоянными значениями
 constant_columns = [
