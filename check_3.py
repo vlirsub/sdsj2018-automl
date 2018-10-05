@@ -123,6 +123,8 @@ print('RMSE: {}'.format(metric))
 #11405518348
 #11385751169 200
 
+#https://habr.com/company/nixsolutions/blog/425253/
+
 #%% Важность признаков
 fi = pd.DataFrame(list(zip(used_columns, model.feature_importances_)), columns=('clm', 'imp'))
 fi.sort_values(by='imp', inplace=True, ascending=False)
