@@ -42,7 +42,7 @@ def get_model(c):
     elif c == MODE_classification[0]:
         return MODE_classification
     else:
-        raise Exception('Не ожиданный тип модели "{}"'.format(d[-1]))
+        raise Exception('Не ожиданный тип модели "{}"'.format(c))
 
 
 def main():

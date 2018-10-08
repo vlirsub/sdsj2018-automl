@@ -7,10 +7,11 @@ import time
 from utils import transform_datetime_features
 
 # use this to stop the algorithm before time limit exceeds
-TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5*60))
+TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5 * 60))
 
 MODE_classification = r'classification'
 MODE_regression = r'regression'
+
 
 def main(args):
     start_time = time.time()
@@ -39,23 +40,48 @@ def main(args):
     elif any(df.isnull()):
         df.fillna(value=df.mean(axis=0), inplace=True)
 
+    number_columns = model_config['number_columns']
+    id_columns = model_config['id_columns']
+    datetime_columns = model_config['datetime_columns']
+
+    if model_config['mode'] == MODE_regression \
+            and len(datetime_columns) > 0 \
+            and len(id_columns) > 0:
+
+        print('Add shift columns for numeric')
+
+        # def f_trans(x):
+        #     for cn in number_columns:
+        #         for i in range(1, 2 * 7 + 1):
+        #             cn_shift = '{}_s{}'.format(cn, i)
+        #             x[cn_shift] = x[cn].shift(i)
+        #             x[cn_shift].fillna(-1, inplace=True)
+        #     return x
+        def f_trans(x):
+            x['number_23_s'] = x['number_23'].shift(-1).fillna(0)
+
+            return x
+
+        df = df[id_columns + ['line_id'] + number_columns].groupby(id_columns).apply(f_trans)
+
     # filter columns
     used_columns = model_config['used_columns']
 
     # scale
-    #X_scaled = model_config['scaler'].transform(df[used_columns])
+    # X_scaled = model_config['scaler'].transform(df[used_columns])
     X_scaled = df[used_columns]
 
     model = model_config['model']
     if model_config['mode'] == MODE_regression:
         df['prediction'] = model.predict(X_scaled)
-    elif model_config['mode'] == MODE_classification:
+    elif model_config['mode'] == 'classification':
         df['prediction'] = model.predict_proba(X_scaled)[:, 1]
 
     df[['line_id', 'prediction']].to_csv(args.prediction_csv, index=False)
 
     print('Prediction time: {}'.format(time.time() - start_time))
     return 0
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -65,5 +91,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args)
-
-
