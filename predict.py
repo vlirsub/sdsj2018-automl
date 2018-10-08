@@ -57,12 +57,12 @@ def main(args):
         #             x[cn_shift] = x[cn].shift(i)
         #             x[cn_shift].fillna(-1, inplace=True)
         #     return x
-        def f_trans(x):
-            x['number_23_s'] = x['number_23'].shift(-1).fillna(0)
-
-            return x
-
-        df = df[id_columns + ['line_id'] + number_columns].groupby(id_columns).apply(f_trans)
+        # def f_trans(x):
+        #     x['number_23_s'] = x['number_23'].shift(-1).fillna(0)
+        #
+        #     return x
+        #
+        # df = df[id_columns + ['line_id'] + number_columns].groupby(id_columns).apply(f_trans)
 
     # filter columns
     used_columns = model_config['used_columns']
