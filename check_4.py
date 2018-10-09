@@ -212,8 +212,11 @@ df_X_test['datetime_2'].value_counts().sort_index()
 df_X_d = df_X[df_X['datetime_0'] == '2017-04-14'].copy()
 df_X_test_d = df_X_test[df_X_test['datetime_0'] == '2017-04-14'].copy()
 
-[(col_name, df_X_d[col_name].unique().shape[0]) for col_name in df_X_d.columns]
+def noise_columns(df, val):
+    u = df.shape[0]
+    return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]
 
+noise_columns(df_X, 0.9)
 noise_columns = ['number_{}'.format(i) for i in range(38, 87 + 1)] + ['number_36', 'number_37', 'number_11']
 df_X_d.drop(noise_columns, axis=1, inplace=True)
 df_X_test_d.drop(noise_columns, axis=1, inplace=True)

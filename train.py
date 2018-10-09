@@ -105,6 +105,16 @@ def main(args):
     model_config['datetime_columns'] = datetime_columns
     print('datetime_columns: {}'.format(datetime_columns))
 
+    # Колонки с шумом
+    def f_noise_columns(df, val):
+        u = df.shape[0]
+        return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]
+
+    noise_columns = f_noise_columns(df_X[number_columns], 0.9)
+    model_config['noise_columns'] = noise_columns
+    print('noise_columns: {}'.format(noise_columns))
+    df_X.drop(noise_columns, axis=1, inplace=True)
+
     if len(id_columns) > 0 and len(datetime_columns) > 0 and args.mode == MODE_REGRESSION:
         # # check_3
         def f_trans(x):
