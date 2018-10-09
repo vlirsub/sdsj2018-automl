@@ -50,7 +50,7 @@ def main():
     Result = list()
 
     dirs = os.listdir(DATA_DIR)
-    for d in dirs[0:3]:
+    for d in dirs[0:]:
         fd = os.path.join(DATA_DIR, d)
         if os.path.isdir(fd):
             start_time = time.time()
@@ -92,11 +92,11 @@ def main():
                 if mode == MODE_classification:
                     # roc_auc
                     metric = roc_auc_score(y['target'], y['prediction'])
-                    print('roc auc: {:.4}'.format(metric))
+                    print('roc auc: {:.04}'.format(metric))
                 elif mode == MODE_regression:
                     # RMSE
                     metric = mean_squared_error(y['target'], y['prediction'])
-                    print('RMSE: {:.4}'.format(metric))
+                    print('RMSE: {:.04}'.format(metric))
                 else:
                     raise Exception('Не ожиданный тип модели')
             else:

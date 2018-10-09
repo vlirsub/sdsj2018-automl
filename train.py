@@ -22,6 +22,8 @@ TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5*60))
 ONEHOT_MAX_UNIQUE_VALUES = 20
 BIG_DATASET_SIZE = 500 * 1024 * 1024
 
+MODE_REGRESSION = 'regression'
+
 def main(args):
     start_time = time.time()
 
@@ -103,7 +105,8 @@ def main(args):
     model_config['datetime_columns'] = datetime_columns
     print('datetime_columns: {}'.format(datetime_columns))
 
-    if len(id_columns) > 0 and len(datetime_columns) > 0:
+    if len(id_columns) > 0 and len(datetime_columns) > 0 and args.mode == MODE_REGRESSION:
+        # # check_3
         def f_trans(x):
             for cn in number_columns:
                 x['{}_s{}'.format(cn, -1)] = x[cn].shift(-1).fillna(0)
@@ -111,6 +114,15 @@ def main(args):
             return x
 
         df_X = df_X[id_columns + ['line_id'] + number_columns].groupby(id_columns).apply(f_trans)
+
+    if 3 <= len(datetime_columns) <= 10:
+        # check_4
+        print('Add delta datetime columns')
+        for cn in datetime_columns:
+            df_X[cn] = pd.to_datetime(df_X[cn])
+        import itertools
+        for c1, c2 in list(itertools.combinations(datetime_columns, 2)):
+            df_X['number_{}_{}'.format(c1, c2)] = (df_X[c1] - df_X[c2]).dt.days
 
     # use only numeric columns
     used_columns = [
@@ -129,10 +141,9 @@ def main(args):
 
     # fitting
     model_config['mode'] = args.mode
-    if args.mode == 'regression':
-
-
+    if args.mode == MODE_REGRESSION:
         # Подбор модели
+        # check_2
         Scores = list()
         for model in [Ridge(), LGBMRegressor(n_estimators=70)]:
             model.fit(X_train, y_train)
