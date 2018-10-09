@@ -1,3 +1,11 @@
+
+Соревнование
+Data Science Contest
+19 сентября — 3 ноября
+
+https://sdsj.sberbank.ai/ru/
+
+
 echo "# sdsj2018-automl" >> README.md
 git init
 git add README.md
