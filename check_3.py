@@ -120,7 +120,9 @@ def f_trans(x):
     return x
 
 def f_trans(x):
-    x['number_23_s'] = x['number_23'].shift(-1)
+    #x['number_23_s'] = x['number_23'].shift(-1)
+    for cn in number_columns:
+        x['{}_s{}'.format(cn, -1)] = x[cn].shift(-1).fillna(0)
 
     return x
 
@@ -211,6 +213,7 @@ print('RMSE: {}'.format(metric))
 #14818077352
 #297042301
 #87200696.1696
+#162934933
 
 # https://habr.com/company/nixsolutions/blog/425253/
 

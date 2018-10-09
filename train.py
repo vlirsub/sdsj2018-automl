@@ -6,8 +6,8 @@ import pickle
 import time
 
 from sklearn.linear_model import Ridge, LogisticRegression
-# from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-# from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
+#from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+#from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
 from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.metrics import roc_auc_score, mean_squared_error
 from sklearn.model_selection import cross_val_score
@@ -18,13 +18,9 @@ from sklearn.preprocessing import StandardScaler
 from utils import transform_datetime_features
 
 # use this to stop the algorithm before time limit exceeds
-TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5 * 60))
-ONEHOT_MAX_UNIQUE_VALUES = 32
+TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5*60))
+ONEHOT_MAX_UNIQUE_VALUES = 20
 BIG_DATASET_SIZE = 500 * 1024 * 1024
-
-MODE_classification = r'classification'
-MODE_regression = r'regression'
-
 
 def main(args):
     start_time = time.time()
@@ -84,51 +80,37 @@ def main(args):
             model_config['missing'] = True
             df_X.fillna(-1, inplace=True)
 
-    datetime_columns = [col_name
-                        for col_name in df_X.columns
-                        if col_name.startswith('datetime')]
-    model_config['datetime_columns'] = datetime_columns
-    print('datetime_columns {}'.format(datetime_columns))
-
-    id_columns = [col_name
-                  for col_name in df_X.columns
-                  if col_name.startswith('id')]
-    model_config['id_columns'] = id_columns
-    print('id_columns {}'.format(id_columns))
-
-    number_columns = [col_name
-                      for col_name in df_X.columns
-                      if col_name.startswith('number')]
+    number_columns = [
+        col_name
+        for col_name in df_X.columns
+        if col_name.startswith('number')
+    ]
     model_config['number_columns'] = number_columns
 
-    if args.mode == MODE_regression \
-            and len(datetime_columns) > 0 \
-            and len(id_columns) > 0:
+    id_columns = [
+        col_name
+        for col_name in df_X.columns
+        if col_name.startswith('id')
+    ]
+    model_config['id_columns'] = id_columns
+    print('id_columns: {}'.format(id_columns))
 
-        number_columns = [
-            col_name
-            for col_name in df_X.columns
-            if col_name.startswith('number')
-        ]
+    datetime_columns = [
+        col_name
+        for col_name in df_X.columns
+        if col_name.startswith('datetime')
+    ]
+    model_config['datetime_columns'] = datetime_columns
+    print('datetime_columns: {}'.format(datetime_columns))
 
-        model_config['number_columns'] = number_columns
+    if len(id_columns) > 0 and len(datetime_columns) > 0:
+        def f_trans(x):
+            for cn in number_columns:
+                x['{}_s{}'.format(cn, -1)] = x[cn].shift(-1).fillna(0)
 
-        print('Add shift columns for numeric')
+            return x
 
-        # def f_trans(x):
-        #     for cn in number_columns:
-        #         for i in range(1, 4 * 7 + 1):
-        #             cn_shift = '{}_s{}'.format(cn, i)
-        #             x[cn_shift] = x[cn].shift(i)
-        #             x[cn_shift].fillna(-1, inplace=True)
-        #     return x
-
-        # def f_trans(x):
-        #     x['number_23_s'] = x['number_23'].shift(-1).fillna(0)
-        #
-        #     return x
-        #
-        # df_X = df_X[id_columns + ['line_id'] + number_columns].groupby(id_columns).apply(f_trans)
+        df_X = df_X[id_columns + ['line_id'] + number_columns].groupby(id_columns).apply(f_trans)
 
     # use only numeric columns
     used_columns = [
@@ -141,32 +123,34 @@ def main(args):
     X_train = df_X[used_columns].values
     y_train = df_y.values
     # scaling
-    # scaler = StandardScaler(copy=False)
-    # df_X = scaler.fit_transform(df_X)
-    # model_config['scaler'] = scaler
+    #scaler = StandardScaler(copy=False)
+    #df_X = scaler.fit_transform(df_X)
+    #model_config['scaler'] = scaler
 
     # fitting
     model_config['mode'] = args.mode
-    if args.mode == MODE_regression:
+    if args.mode == 'regression':
+
+
         # Подбор модели
         Scores = list()
         for model in [Ridge(), LGBMRegressor(n_estimators=70)]:
             model.fit(X_train, y_train)
             kfold = KFold(n_splits=3, shuffle=True, random_state=0)
-            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='neg_mean_squared_error',
-                                    verbose=0)
+            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='neg_mean_squared_error', verbose=0)
 
             print('X {} y {} score: {} mean: {}'.format(X_train.shape, y_train.shape, score.round(2), score.mean()))
             Scores.append((abs(score.mean()), model))
-        Scores.sort(key=lambda k: k[0])
+        Scores.sort(key=lambda k : k[0])
 
         model = Scores[0][1]
         print(Scores)
 
     else:
-        # model = LogisticRegression()
+        #model = LogisticRegression()
         model = LGBMClassifier(n_estimators=70)
         model.fit(X_train, y_train)
+
 
     model_config['model'] = model
 
@@ -176,7 +160,6 @@ def main(args):
 
     print('Train time: {}'.format(time.time() - start_time))
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train-csv', type=argparse.FileType('r'), required=True)
@@ -185,3 +168,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args)
+
+
+
