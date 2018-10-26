@@ -39,6 +39,8 @@ print('Test dataset memory usage {:.3} MB'.format(df_test.memory_usage().sum() /
 # Данные с правильными ответами
 y_true = pd.read_csv(target_csv)
 
+df_test = pd.merge(df_test, y_true, on='line_id')
+
 # Для классификации составляем датасет из признаков есть target или нет
 df_X = df.copy()
 df_X.shape  # 467485, 17
@@ -51,6 +53,9 @@ df_X.shape  # 467485, 16
 y_test = y_true.copy()
 y_test.shape  # 169638, 2
 
+df_X['datetime_0'] = pd.to_datetime(df_X['datetime_0'])
+df_test['datetime_0'] = pd.to_datetime(df_test['datetime_0'])
+
 # drop constant features
 constant_columns = [
     col_name
@@ -58,6 +63,53 @@ constant_columns = [
     if df_X[col_name].nunique() == 1
 ]
 df_X.drop(constant_columns, axis=1, inplace=True)
+
+def noise_columns(df, val):
+    u = df.shape[0]
+    return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]
+
+noise_columns(df_X, 0.9)
+
+## Уникалные значения колонок
+[(col_name, df_X[col_name].unique().shape[0]) for col_name in df_X.columns]
+#[('number_0', 19),
+# ('number_1', 868),
+# ('number_2', 228276),
+# ('number_3', 351),
+# ('number_4', 56),
+# ('number_5', 7),
+# ('number_6', 4),
+# ('number_7', 4),
+# ('number_8', 4),
+# ('number_9', 4),
+# ('number_10', 4),
+# ('number_11', 4),
+# ('target', 2),
+# ('datetime_0', 235),
+# ('number_12', 280866),
+# ('number_13', 2837),
+# ('line_id', 467485)]
+
+df_X['number_3'].hist(bins=100)
+df_X['datetime_0'].hist(bins=100)
+
+np.sort(df_X['datetime_0'].unique())
+
+df_X['datetime_0'].value_counts().sort_index().plot()
+
+df_test['datetime_0'].value_counts().sort_index().plot()
+
+plt.hist(np.log(df_X['number_4']), bins=100)
+
+df_X_d = df_X[df_X['datetime_0'] == '2017-03-03']
+df_test_d = df_test[df_test['datetime_0'] == '2017-03-03']
+
+
+# https://habr.com/company/nixsolutions/blog/425253/
+
+## Посмотрим на данные
+df_X['number_0'].plot()
+plt.scatter(df_X['number_1'], df_X['number_3'], c=df_X['target'], alpha=0.5)
 
 # features from datetime
 df_X = transform_datetime_features(df_X)
@@ -100,19 +152,32 @@ used_columns = [
     for col_name in df_X.columns
     if col_name.startswith('number') or col_name.startswith('dt') #or col_name.startswith('onehot') #
 ]
-X_values = df_X[used_columns].values
-y_train = df_y.values.ravel()
-X_test = df_test[used_columns].values
+X_values = df_X_d[used_columns].values
+y_train = df_X_d['target'].values
+
+X_test = df_test_d[used_columns].values
+y_test = df_test_d['target'].values
+
 print('X_values shape {}'.format(X_values.shape))  # X_values shape (467485, 89)
 print('X_test shape {}'.format(X_test.shape))  # X_test shape (169638, 89)
 
+from sklearn.linear_model import RidgeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+
 # PolynomialFeatures
-pf = PolynomialFeatures()
+pf = PolynomialFeatures(degree=3)
 X_values = pf.fit_transform(X_values)
 X_test = pf.transform(X_test)
 
-model = LGBMClassifier(n_estimators=200)
+model = RidgeClassifier()
+model = RandomForestClassifier(n_neighbors=10)
+model = KNeighborsClassifier()
+model = LGBMClassifier(n_estimators=70)
+model = LogisticRegression()
+
 model.fit(X_values, y_train)
+
 kfold = KFold(n_splits=3, shuffle=True, random_state=0)
 score = cross_val_score(model, X_values, y_train, cv=kfold, n_jobs=1, scoring='roc_auc',
                         verbose=0)
@@ -123,19 +188,27 @@ print('score {:.4}'.format(score.mean()))
 # score 0.7832  roc auc: 0.7809  col_name.startswith('number') or col_name.startswith('onehot')
 # score 0.7854 roc auc: 0.7831 col_name.startswith('number') or col_name.startswith('dt')
 
-prediction = model.predict_proba(X_test)[:, 1]
-
-result = y_true.copy()
-result['prediction'] = prediction
+result = df_test_d[['target']].copy()
+result['prediction'] = model.predict_proba(X_test)[:, 1]
+result['prediction'] = model._predict_proba_lr(X_test)[:, 1]
 
 metric = roc_auc_score(result['target'], result['prediction'])
 print('roc auc: {:.4}'.format(metric))
-# Отправлено
+# Обучение
+result = df_X_d[['target']].copy()
+result['prediction'] = model.predict_proba(X_values)[:, 1]
+result['prediction'] = model._predict_proba_lr(X_values)[:, 1]
+
+metric = roc_auc_score(result['target'], result['prediction'])
+print('roc auc: {:.4}'.format(metric))
+#
+# roc auc: 0.7132
+# roc auc: 0.9765
 
 result['prediction'].hist(bins=100)
 
 # %% Важность признаков
-fi = pd.DataFrame(list(zip(df_X[used_columns], model.feature_importances_)), columns=('clm', 'imp'))
+fi = pd.DataFrame(list(zip(df_X_d[used_columns], model.feature_importances_)), columns=('clm', 'imp'))
 fi.sort_values(by='imp', inplace=True, ascending=False)
 
 # eof

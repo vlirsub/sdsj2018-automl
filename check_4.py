@@ -212,6 +212,8 @@ df_X_test['datetime_2'].value_counts().sort_index()
 df_X_d = df_X[df_X['datetime_0'] == '2017-04-14'].copy()
 df_X_test_d = df_X_test[df_X_test['datetime_0'] == '2017-04-14'].copy()
 
+# https://habr.com/company/nixsolutions/blog/425253/
+
 def noise_columns(df, val):
     u = df.shape[0]
     return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]

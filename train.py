@@ -6,23 +6,26 @@ import pickle
 import time
 
 from sklearn.linear_model import Ridge, LogisticRegression
-#from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-#from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
+# from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+# from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier
+from sklearn.linear_model import RidgeClassifier
 from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.metrics import roc_auc_score, mean_squared_error
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
+import lightgbm as lgb
 
 from sklearn.preprocessing import StandardScaler
 
 from utils import transform_datetime_features
 
 # use this to stop the algorithm before time limit exceeds
-TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5*60))
+TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5 * 60))
 ONEHOT_MAX_UNIQUE_VALUES = 20
 BIG_DATASET_SIZE = 500 * 1024 * 1024
 
 MODE_REGRESSION = 'regression'
+
 
 def main(args):
     start_time = time.time()
@@ -145,33 +148,70 @@ def main(args):
     X_train = df_X[used_columns].values
     y_train = df_y.values
     # scaling
-    #scaler = StandardScaler(copy=False)
-    #df_X = scaler.fit_transform(df_X)
-    #model_config['scaler'] = scaler
+    # scaler = StandardScaler(copy=False)
+    # df_X = scaler.fit_transform(df_X)
+    # model_config['scaler'] = scaler
+
+    params = {
+        'task': 'train',
+        'boosting_type': 'gbdt',
+        'objective': 'regression' if args.mode == MODE_REGRESSION else 'binary',
+        # 'objective': 'binary',
+        'metric': 'rmse',
+        "learning_rate": 0.01,
+        "num_leaves": 200,
+        "feature_fraction": 0.70,
+        "bagging_fraction": 0.70,
+        'bagging_freq': 4,
+        "max_depth": -1,
+        "verbosity": -1,
+        "reg_alpha": 0.3,
+        "reg_lambda": 0.1,
+        # "min_split_gain":0.2,
+        "min_child_weight": 10,
+        'zero_as_missing': True,
+        'num_threads': 4,
+    }
+
+    model = lgb.train(params, lgb.Dataset(X_train, label=y_train), 600)
 
     # fitting
     model_config['mode'] = args.mode
-    if args.mode == MODE_REGRESSION:
-        # Подбор модели
-        # check_2
-        Scores = list()
-        for model in [Ridge(), LGBMRegressor(n_estimators=70)]:
-            model.fit(X_train, y_train)
-            kfold = KFold(n_splits=3, shuffle=True, random_state=0)
-            score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='neg_mean_squared_error', verbose=0)
-
-            print('X {} y {} score: {} mean: {}'.format(X_train.shape, y_train.shape, score.round(2), score.mean()))
-            Scores.append((abs(score.mean()), model))
-        Scores.sort(key=lambda k : k[0])
-
-        model = Scores[0][1]
-        print(Scores)
-
-    else:
-        #model = LogisticRegression()
-        model = LGBMClassifier(n_estimators=70)
-        model.fit(X_train, y_train)
-
+    # if args.mode == MODE_REGRESSION:
+    #     # Подбор модели
+    #     # check_2
+    #     Scores = list()
+    #     for model in [Ridge(), LGBMRegressor(n_estimators=70)]:
+    #         model.fit(X_train, y_train)
+    #         kfold = KFold(n_splits=3, shuffle=True, random_state=0)
+    #         score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='neg_mean_squared_error',
+    #                                 verbose=0)
+    #
+    #         print('X {} y {} score: {} mean: {}'.format(X_train.shape, y_train.shape, score.round(2), score.mean()))
+    #         Scores.append((abs(score.mean()), model))
+    #     Scores.sort(key=lambda k: k[0])
+    #
+    #     model = Scores[0][1]
+    #     print(Scores)
+    #
+    # else:
+    #     # model = RidgeClassifier()
+    #     # model = LGBMClassifier(n_estimators=70)
+    #     # model.fit(X_train, y_train)
+    #
+    #     Scores = list()
+    #     for model in [RidgeClassifier(), LGBMClassifier(n_estimators=70)]:
+    #         model.fit(X_train, y_train)
+    #         kfold = KFold(n_splits=3, shuffle=True, random_state=0)
+    #         score = cross_val_score(model, X_train, y_train, cv=kfold, n_jobs=1, scoring='roc_auc',
+    #                                 verbose=0)
+    #
+    #         print('X {} y {} score: {} mean: {}'.format(X_train.shape, y_train.shape, score.round(2), score.mean()))
+    #         Scores.append((abs(score.mean()), model))
+    #     Scores.sort(key=lambda k: k[0], reverse=True)
+    #
+    #     model = Scores[0][1]
+    #     print(Scores)
 
     model_config['model'] = model
 
@@ -181,6 +221,7 @@ def main(args):
 
     print('Train time: {}'.format(time.time() - start_time))
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train-csv', type=argparse.FileType('r'), required=True)
@@ -189,6 +230,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args)
-
-
-

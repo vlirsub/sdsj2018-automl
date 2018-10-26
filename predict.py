@@ -71,12 +71,18 @@ def main(args):
     X_scaled = df[used_columns]
 
     model = model_config['model']
-    if mode == MODE_REGRESSION:
-        df['prediction'] = model.predict(X_scaled)
-    elif mode == MODE_CLASSIFICATION:
-        df['prediction'] = model.predict_proba(X_scaled)[:, 1]
-    else:
-        raise Exception('Ошибочный режим {}'.format(mode))
+
+    df['prediction'] = model.predict(X_scaled)
+
+    # if mode == MODE_REGRESSION:
+    #     df['prediction'] = model.predict(X_scaled)
+    # elif mode == MODE_CLASSIFICATION:
+    #     if hasattr(model, 'predict_proba'):
+    #         df['prediction'] = model.predict_proba(X_scaled)[:, 1]
+    #     else:
+    #         df['prediction'] = model._predict_proba_lr(X_scaled)[:, 1]
+    # else:
+    #     raise Exception('Ошибочный режим {}'.format(mode))
 
     df[['line_id', 'prediction']].to_csv(args.prediction_csv, index=False)
 
