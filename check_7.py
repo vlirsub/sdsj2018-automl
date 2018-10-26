@@ -227,7 +227,7 @@ result['prediction'] = prediction
 
 metric = roc_auc_score(result['target'], result['prediction'])
 print('roc auc: {:.4}'.format(metric))
-# 0.8453
+# 0.8453 0.8461
 # 0.8317
 
 result['prediction'].hist(bins=100)
