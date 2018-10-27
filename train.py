@@ -85,26 +85,18 @@ def main(args):
             model_config['missing'] = True
             df_X.fillna(-1, inplace=True)
 
-    number_columns = [
-        col_name
-        for col_name in df_X.columns
-        if col_name.startswith('number')
-    ]
+    #
+    number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
     model_config['number_columns'] = number_columns
+    print('number_columns: {}'.format(number_columns))
 
-    id_columns = [
-        col_name
-        for col_name in df_X.columns
-        if col_name.startswith('id')
-    ]
+    #
+    id_columns = [col_name for col_name in df_X.columns if col_name.startswith('id')]
     model_config['id_columns'] = id_columns
     print('id_columns: {}'.format(id_columns))
 
-    datetime_columns = [
-        col_name
-        for col_name in df_X.columns
-        if col_name.startswith('datetime')
-    ]
+    #
+    datetime_columns = [col_name for col_name in df_X.columns if col_name.startswith('datetime')]
     model_config['datetime_columns'] = datetime_columns
     print('datetime_columns: {}'.format(datetime_columns))
 
@@ -138,11 +130,8 @@ def main(args):
             df_X['number_{}_{}'.format(c1, c2)] = (df_X[c1] - df_X[c2]).dt.days
 
     # use only numeric columns
-    used_columns = [
-        col_name
-        for col_name in df_X.columns
-        if col_name.startswith('number') or col_name.startswith('onehot')
-    ]
+    used_columns = [col_name for col_name in df_X.columns if
+                    col_name.startswith('number') or col_name.startswith('onehot')]
     model_config['used_columns'] = used_columns
 
     X_train = df_X[used_columns].values
