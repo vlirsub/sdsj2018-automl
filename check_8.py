@@ -59,7 +59,11 @@ print('Test true dataset, shape {}'.format(df_y_test.shape))  # (61512,)
 
 # Преобразование колонок с датой
 import datetime
+import re
 
+r = re.compile(r'\d{4}-\d{2}-\d{2}')
+if r.match('2016-01-10'):
+    print(True)
 
 def parse_dt(x):
     if not isinstance(x, str):
