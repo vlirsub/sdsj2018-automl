@@ -120,14 +120,14 @@ def main(args):
 
         df_X = df_X[id_columns + ['line_id'] + number_columns].groupby(id_columns).apply(f_trans)
 
-    # if 3 <= len(datetime_columns) <= 10:
-    #     # check_4
-    #     print('Add delta datetime columns')
-    #     for cn in datetime_columns:
-    #         df_X[cn] = pd.to_datetime(df_X[cn])
-    #     import itertools
-    #     for c1, c2 in list(itertools.combinations(datetime_columns, 2)):
-    #         df_X['number_{}_{}'.format(c1, c2)] = (df_X[c1] - df_X[c2]).dt.days
+    if 3 <= len(datetime_columns) <= 10:
+        # check_4
+        print('Add delta datetime columns')
+        for cn in datetime_columns:
+            df_X[cn] = pd.to_datetime(df_X[cn])
+        import itertools
+        for c1, c2 in list(itertools.combinations(datetime_columns, 2)):
+            df_X['number_{}_{}'.format(c1, c2)] = (df_X[c1] - df_X[c2]).dt.days
 
     # use only numeric columns
     used_columns = [col_name for col_name in df_X.columns if

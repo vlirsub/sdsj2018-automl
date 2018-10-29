@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
+import gc
 
 from sklearn.linear_model import Ridge, LogisticRegression
 from lightgbm import LGBMClassifier, LGBMRegressor
@@ -17,11 +18,11 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 
-from utils import transform_datetime_features
+from utils import transform_datetime_features, reduce_mem_usage
 
 # Директория с данными
 DATA_DIR = r'm:\tmp\SB'
-ONEHOT_MAX_UNIQUE_VALUES = 20
+ONEHOT_MAX_UNIQUE_VALUES = 32
 BIG_DATASET_SIZE = 500 * 1024 * 1024
 
 fd = os.path.join(DATA_DIR, 'check_8_c')
@@ -57,66 +58,7 @@ print('Test dataset, shape {}'.format(df_X_test.shape))  # (61512, 877)
 print('Train true dataset, shape {}'.format(df_y.shape))  # (143525,)
 print('Test true dataset, shape {}'.format(df_y_test.shape))  # (61512,)
 
-# Преобразование колонок с датой
-import datetime
-import re
-
-r = re.compile(r'\d{4}-\d{2}-\d{2}')
-if r.match('2016-01-10'):
-    print(True)
-
-def parse_dt(x):
-    if not isinstance(x, str):
-        return None
-    elif len(x) == len('2010-01-01'):
-        return datetime.datetime.strptime(x, '%Y-%m-%d')
-    elif len(x) == len('2010-01-01 10:10:10'):
-        return datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-    else:
-        return None
-
-
-df = df_X  # Для проверки
-
-# Замена колонок string с датой на дату
-datestr_columns = [col_name for col_name in df.columns if col_name.startswith('string')]
-pd.to_datetime(df['string_1']).unique()
-
-
-# Проверка содержется ли в колонке дата
-def check_date() -> bool:
-
-
-for d in df['string_20'].dropna().unique():
-    l = len('2010-01-01')
-    if len(d) != l:
-        raise Exception('Dont date')
-
-for col_name in datestr_columns:
-    try:
-        df[col_name].apply(lambda x: parse_dt(x))
-        print('Дата ' + col_name)
-    except:
-        print('Не дата ' + col_name)
-        pass
-
-
-def transform_datetime_features(df):
-    datetime_columns = [
-        col_name
-        for col_name in df.columns
-        if col_name.startswith('datetime')
-    ]
-    for col_name in datetime_columns:
-        df[col_name] = df[col_name].apply(lambda x: parse_dt(x))
-        df['number_weekday_{}'.format(col_name)] = df[col_name].apply(lambda x: x.weekday())
-        df['number_month_{}'.format(col_name)] = df[col_name].apply(lambda x: x.month)
-        df['number_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.day)
-        # df['number_hour_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour)
-        # df['number_hour_of_week_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour + x.weekday() * 24)
-        # df['number_minute_of_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.minute + x.hour * 60)
-    return df
-
+gc.collect()
 
 # drop constant features
 constant_columns = [col_name for col_name in df_X.columns if df_X[col_name].nunique() == 1]
@@ -124,12 +66,122 @@ print('constant_columns: {}'.format(constant_columns))
 df_X.drop(constant_columns, axis=1, inplace=True)
 df_X_test.drop(constant_columns, axis=1, inplace=True)
 
+gc.collect()
+
 # dict with data necessary to make predictions
 model_config = {}
-model_config['categorical_values'] = {}
-model_config['is_big'] = True
+#model_config['categorical_values'] = {}
+#model_config['is_big'] = True
+
+# Преобразование колонок с датой
+import re
+
+# Проверка содержится ли в колонке дата
+def check_date(col) -> bool:
+    l = len('2010-01-01')
+    r = re.compile(r'\d{4}-\d{2}-\d{2}')
+    for d in col.dropna().unique():
+        if len(d) != l or not r.match(d):
+            return False
+    return True
+
+
+# Замена колонок string с датой на дату
+datestr_columns = [col_name for col_name in df_X.columns if col_name.startswith('string')]
+datestr_columns = [col_name for col_name in datestr_columns if check_date(df_X[col_name])]
+print('datestr_columns: {}'.format(datestr_columns))
+
+# Переименовываем колонки string в datetime_string
+for col_name in datestr_columns:
+    df_X.rename(columns={col_name: 'datetime_' + col_name}, inplace=True)
+    df_X_test.rename(columns={col_name: 'datetime_' + col_name}, inplace=True)
+
+
+def transform_datetime_features(df):
+    datetime_columns = [col_name for col_name in df.columns if col_name.startswith('datetime')]
+    for col_name in datetime_columns:
+        # df[col_name] = df[col_name].apply(lambda x: parse_dt(x))
+        # df['number_weekday_{}'.format(col_name)] = df[col_name].apply(lambda x: x.weekday())
+        # df['number_month_{}'.format(col_name)] = df[col_name].apply(lambda x: x.month)
+        # df['number_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.day)
+        # df['number_hour_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour)
+        # df['number_hour_of_week_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour + x.weekday() * 24)
+        # df['number_minute_of_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.minute + x.hour * 60)
+        df[col_name] = pd.to_datetime(df[col_name])
+        df['number_day_{}'.format(col_name)] = df[col_name].dt.weekday.astype(np.float16)
+        df['number_month_{}'.format(col_name)] = df[col_name].dt.month.astype(np.float16)
+        df['number_day_{}'.format(col_name)] = df[col_name].dt.day.astype(np.float16)
+    return df
+
+# Преобразуем колонки datetime_ в тип datetime и добавляем признаки из даты
+df_X = transform_datetime_features(df_X)
+df_X_test = transform_datetime_features(df_X_test)
+
+gc.collect()
+
+def reduce_mem_usage(df):
+    """ iterate through all the columns of a dataframe and modify the data type
+        to reduce memory usage.
+    """
+    start_mem = df.memory_usage().sum() / 1024 ** 2
+    print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
+
+    for col in df.columns:
+        print(col)
+        col_type = df[col].dtype
+
+        if col_type != object:
+            c_min = df[col].min()
+            c_max = df[col].max()
+            if str(col_type)[:3] == 'int':
+                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                    df[col] = df[col].astype(np.int8)
+                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                    df[col] = df[col].astype(np.int16)
+                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                    df[col] = df[col].astype(np.int32)
+                elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
+                    df[col] = df[col].astype(np.int64)
+            elif str(col_type)[:5] == 'float':
+                if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
+                    df[col] = df[col].astype(np.float16)
+                elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+                    df[col] = df[col].astype(np.float32)
+                else:
+                    df[col] = df[col].astype(np.float64)
+        #else:
+            #df[col] = df[col].astype('category')
+
+    end_mem = df.memory_usage().sum() / 1024 ** 2
+    print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
+    print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
+
+    return df
+
+# Уменьшение занимаемой памяти
+reduce_mem_usage(df_X)
+
+# Такие строки надо преобразовать в onehot
+# string_18 ['000000000000' '111111111111' '000001111111' ... '011011111010' '101001011000' '101011010111']
+# string_19 ['111111111111' '000000000000' '110111111111' '000000000001'
+#  'XXXXXX000000' '111111111000' '111110000000' '110111010110'
+
+# Строки в категории
+string_columns = [col_name for col_name in df_X.columns if col_name.startswith('string')]
+model_config['string_columns'] = string_columns
+print('string_columns: {} {}'.format(len(string_columns), string_columns))
+
+for col_name in string_columns:
+    #df_X['number_' + col_name] = df_X[col_name].astype('category').cat.codes
+    df_X_test['number_' + col_name] = df_X_test[col_name].astype('category').cat.codes
+
+df_X.drop(string_columns, axis=1, inplace=True)
+df_X_test.drop(string_columns, axis=1, inplace=True)
+
+gc.collect()
 
 # missing values
+#numpy.nan_to_num¶
 if any(df_X.isnull()):
     model_config['missing'] = True
     df_X.fillna(-1, inplace=True)
