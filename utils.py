@@ -26,7 +26,7 @@ def transform_datetime_features(df):
         # df['number_minute_of_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.minute + x.hour * 60)
 
         df[col_name] = pd.to_datetime(df[col_name])
-        df['number_day_{}'.format(col_name)] = df[col_name].dt.weekday.astype(np.float16)
+        df['number_wday_{}'.format(col_name)] = df[col_name].dt.weekday.astype(np.float16)
         df['number_month_{}'.format(col_name)] = df[col_name].dt.month.astype(np.float16)
         df['number_day_{}'.format(col_name)] = df[col_name].dt.day.astype(np.float16)
     #return df
