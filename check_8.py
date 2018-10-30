@@ -99,6 +99,7 @@ for col_name in datestr_columns:
     df_X.rename(columns={col_name: 'datetime_' + col_name}, inplace=True)
     df_X_test.rename(columns={col_name: 'datetime_' + col_name}, inplace=True)
 
+
 # Преобразуем колонки datetime_ в тип datetime и добавляем признаки из даты
 def transform_datetime_features(df):
     datetime_columns = [col_name for col_name in df.columns if col_name.startswith('datetime')]
@@ -116,23 +117,19 @@ def transform_datetime_features(df):
         df['number_month_{}'.format(col_name)] = df[col_name].dt.month.astype(np.float16)
         df['number_day_{}'.format(col_name)] = df[col_name].dt.day.astype(np.float16)
 
-        df['number_days_{}'.format(col_name)] = (df[col_name] - df[col_name].min(skipna=True)).dt.days.astype(np.float32)
+        #df['number_days_{}'.format(col_name)] = (df[col_name] - df[col_name].min(skipna=True)).dt.days.astype(
+        #    np.float32)
 
-    #return df
+    # return df
+
 
 transform_datetime_features(df_X)
 transform_datetime_features(df_X_test)
 
-datetime_columns = [col_name for col_name in df_X.columns if col_name.startswith('datetime')]
-df = df_X[datetime_columns]
-df.min(skipna=True)
-df.max(skipna=True)
-
-df.iloc[:, 8].hist(bins=100)
-
-# TODO: Дату перевести в количество дней от миимальной для столбца
-col_name = 'datetime_0'
-(df[col_name] - df[col_name].min(skipna=True)).dt.days.astype(np.float32)
+# Среднее по дням
+#datetime_columns = [col_name for col_name in df_X.columns if col_name.startswith('number_days_')]
+#df_X['number_days_mean'] = df_X[datetime_columns].mean(axis=1, skipna=True)
+#df_X_test['number_days_mean'] = df_X_test[datetime_columns].mean(axis=1, skipna=True)
 
 gc.collect()
 
@@ -149,11 +146,12 @@ string_columns = [col_name for col_name in df_X.columns if col_name.startswith('
 for col_name in string_columns:
     df_X[col_name].unique()
 
-df_X['string_18'].unique().dropna()
+df_X['string_18'].dropna().unique().shape
 # string_18 ['000000000000' '111111111111' '000001111111' ... '011011111010' '101001011000' '101011010111']
 # string_19 ['111111111111' '000000000000' '110111111111' '000000000001'
 #  'XXXXXX000000' '111111111000' '111110000000' '110111010110'
 
+#
 # Строки в категории
 string_columns = [col_name for col_name in df_X.columns if col_name.startswith('string')]
 model_config['string_columns'] = string_columns
@@ -233,9 +231,11 @@ def corr_df(x, corr_val):
 number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
 
 droped_columns = corr_df(df_X[number_columns], 0.6)
+print('droped_columns: {} {}'.format(len(droped_columns), droped_columns))
 
 df_X.drop(droped_columns, axis=1, inplace=True)
 df_X_test.drop(droped_columns, axis=1, inplace=True)
+gc.collect()
 
 #
 number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
@@ -301,6 +301,8 @@ print('roc auc: {:.4}'.format(metric))
 # 0.8317
 # 0.8864
 # 0.8879
+# 0.8856
+# 0.8883
 
 # df_X = transform_datetime_features(df_X)
 
