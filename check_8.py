@@ -18,7 +18,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 
-from utils import transform_datetime_features, reduce_mem_usage
+from utils import transform_datetime_features, reduce_mem_usage, check_date
 
 # Директория с данными
 DATA_DIR = r'm:\tmp\SB'
@@ -70,20 +70,25 @@ gc.collect()
 
 # dict with data necessary to make predictions
 model_config = {}
-#model_config['categorical_values'] = {}
-#model_config['is_big'] = True
+
+
+# model_config['categorical_values'] = {}
+# model_config['is_big'] = True
+
+# Колонки с шумом
+def f_noise_columns(df, val):
+    u = df.shape[0]
+    return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]
+
+
+number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
+noise_columns = f_noise_columns(df_X[number_columns], 0.95)
+model_config['noise_columns'] = noise_columns
+print('noise_columns: {} {}'.format(len(noise_columns), noise_columns))
+df_X.drop(noise_columns, axis=1, inplace=True)
+df_X_test.drop(noise_columns, axis=1, inplace=True)
 
 # Преобразование колонок с датой
-import re
-
-# Проверка содержится ли в колонке дата
-def check_date(col) -> bool:
-    l = len('2010-01-01')
-    r = re.compile(r'\d{4}-\d{2}-\d{2}')
-    for d in col.dropna().unique():
-        if len(d) != l or not r.match(d):
-            return False
-    return True
 
 
 # Замена колонок string с датой на дату
@@ -96,72 +101,26 @@ for col_name in datestr_columns:
     df_X.rename(columns={col_name: 'datetime_' + col_name}, inplace=True)
     df_X_test.rename(columns={col_name: 'datetime_' + col_name}, inplace=True)
 
-
-def transform_datetime_features(df):
-    datetime_columns = [col_name for col_name in df.columns if col_name.startswith('datetime')]
-    for col_name in datetime_columns:
-        # df[col_name] = df[col_name].apply(lambda x: parse_dt(x))
-        # df['number_weekday_{}'.format(col_name)] = df[col_name].apply(lambda x: x.weekday())
-        # df['number_month_{}'.format(col_name)] = df[col_name].apply(lambda x: x.month)
-        # df['number_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.day)
-        # df['number_hour_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour)
-        # df['number_hour_of_week_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour + x.weekday() * 24)
-        # df['number_minute_of_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.minute + x.hour * 60)
-        df[col_name] = pd.to_datetime(df[col_name])
-        df['number_day_{}'.format(col_name)] = df[col_name].dt.weekday.astype(np.float16)
-        df['number_month_{}'.format(col_name)] = df[col_name].dt.month.astype(np.float16)
-        df['number_day_{}'.format(col_name)] = df[col_name].dt.day.astype(np.float16)
-    return df
-
 # Преобразуем колонки datetime_ в тип datetime и добавляем признаки из даты
-df_X = transform_datetime_features(df_X)
-df_X_test = transform_datetime_features(df_X_test)
+transform_datetime_features(df_X)
+transform_datetime_features(df_X_test)
 
 gc.collect()
 
-def reduce_mem_usage(df):
-    """ iterate through all the columns of a dataframe and modify the data type
-        to reduce memory usage.
-    """
-    start_mem = df.memory_usage().sum() / 1024 ** 2
-    print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
-
-    for col in df.columns:
-        print(col)
-        col_type = df[col].dtype
-
-        if col_type != object:
-            c_min = df[col].min()
-            c_max = df[col].max()
-            if str(col_type)[:3] == 'int':
-                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
-                    df[col] = df[col].astype(np.int8)
-                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
-                    df[col] = df[col].astype(np.int16)
-                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
-                    df[col] = df[col].astype(np.int32)
-                elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
-                    df[col] = df[col].astype(np.int64)
-            elif str(col_type)[:5] == 'float':
-                if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
-                    df[col] = df[col].astype(np.float16)
-                elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
-                    df[col] = df[col].astype(np.float32)
-                else:
-                    df[col] = df[col].astype(np.float64)
-        #else:
-            #df[col] = df[col].astype('category')
-
-    end_mem = df.memory_usage().sum() / 1024 ** 2
-    print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
-    print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
-
-    return df
-
 # Уменьшение занимаемой памяти
 reduce_mem_usage(df_X)
+reduce_mem_usage(df_X_test)
 
-# Такие строки надо преобразовать в onehot
+gc.collect()
+
+# TODO: Такие строки надо преобразовать в onehot
+# Колонки имеющие строки одинаковой длины
+string_columns = [col_name for col_name in df_X.columns if col_name.startswith('string')]
+
+for col_name in string_columns:
+    df_X[col_name].unique()
+
+df_X['string_18'].unique().dropna()
 # string_18 ['000000000000' '111111111111' '000001111111' ... '011011111010' '101001011000' '101011010111']
 # string_19 ['111111111111' '000000000000' '110111111111' '000000000001'
 #  'XXXXXX000000' '111111111000' '111110000000' '110111010110'
@@ -172,7 +131,7 @@ model_config['string_columns'] = string_columns
 print('string_columns: {} {}'.format(len(string_columns), string_columns))
 
 for col_name in string_columns:
-    #df_X['number_' + col_name] = df_X[col_name].astype('category').cat.codes
+    df_X['number_' + col_name] = df_X[col_name].astype('category').cat.codes
     df_X_test['number_' + col_name] = df_X_test[col_name].astype('category').cat.codes
 
 df_X.drop(string_columns, axis=1, inplace=True)
@@ -180,8 +139,24 @@ df_X_test.drop(string_columns, axis=1, inplace=True)
 
 gc.collect()
 
-# missing values
-#numpy.nan_to_num¶
+# TODO: разница между datetime
+datetime_columns = [col_name for col_name in df_X.columns if col_name.startswith('datetime')]
+model_config['datetime_columns'] = datetime_columns
+print('datetime_columns: {} {}'.format(len(datetime_columns), datetime_columns))
+
+if 3 <= len(datetime_columns) <= 10:
+    print('Add delta datetime columns')
+    import itertools
+
+    for c1, c2 in list(itertools.combinations(datetime_columns, 2)):
+        print('{} - {}'.format(c1, c2))
+        df_X['number_{}_{}'.format(c1, c2)] = (df_X[c1] - df_X[c2]).dt.days
+        df_X_test['number_{}_{}'.format(c1, c2)] = (df_X_test[c1] - df_X_test[c2]).dt.days
+
+(df_X['datetime_89'] - df_X['datetime_80']).unique()
+
+# TODO: missing values?
+# numpy.nan_to_num
 if any(df_X.isnull()):
     model_config['missing'] = True
     df_X.fillna(-1, inplace=True)
@@ -198,38 +173,60 @@ new_columns = df_X.columns[np.argsort(correlations)[-new_feature_count:]]
 df_X = df_X[new_columns].copy()
 df_X_test = df_X_test[new_columns].copy()
 
+
+# TODO: колленеарность признаков
+
+# Колленеарность
+def corr_df(x, corr_val):
+    # Creates Correlation Matrix and Instantiates
+    corr_matrix = x.corr()
+    # corr_matrix = df_X[number_columns].corr()
+    iters = range(len(corr_matrix.columns) - 1)
+    drop_cols = []
+
+    # Iterates through Correlation Matrix Table to find correlated columns
+    for i in iters:
+        for j in range(i):
+            item = corr_matrix.iloc[j:(j + 1), (i + 1):(i + 2)]
+            val = item.values[0][0]
+            if abs(val) >= corr_val:
+                col = item.columns[0]
+                row = item.index[0]
+                # Prints the correlated feature set and the corr val
+                # print(col, "|", row, "|", round(val, 2))
+                drop_cols.append(col)
+
+    drops = set(drop_cols)
+
+    return drops
+
+
+number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
+
+droped_columns = corr_df(df_X[number_columns], 0.6)
+
+df_X.drop(droped_columns, axis=1, inplace=True)
+df_X_test.drop(droped_columns, axis=1, inplace=True)
+
 #
 number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
 model_config['number_columns'] = number_columns
-print('number_columns: {}'.format(number_columns))
+print('number_columns: {} {}'.format(len(number_columns), number_columns))
 
 #
 id_columns = [col_name for col_name in df_X.columns if col_name.startswith('id')]
 model_config['id_columns'] = id_columns
-print('id_columns: {}'.format(id_columns))
+print('id_columns: {} {}'.format(len(id_columns), id_columns))
 #
 datetime_columns = [col_name for col_name in df_X.columns if col_name.startswith('datetime')]
 model_config['datetime_columns'] = datetime_columns
-print('datetime_columns: {}'.format(datetime_columns))
-
-
-# Колонки с шумом
-def f_noise_columns(df, val):
-    u = df.shape[0]
-    return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]
-
-
-noise_columns = f_noise_columns(df_X[number_columns], 0.95)
-model_config['noise_columns'] = noise_columns
-print('noise_columns: {}'.format(noise_columns))
-df_X.drop(noise_columns, axis=1, inplace=True)
-df_X_test.drop(noise_columns, axis=1, inplace=True)
+print('datetime_columns: {} {}'.format(len(datetime_columns), datetime_columns))
 
 # use only numeric columns
 used_columns = [col_name for col_name in df_X.columns if
                 col_name.startswith('number') or col_name.startswith('onehot')]
 model_config['used_columns'] = used_columns
-print('used_columns: {}'.format(used_columns))
+print('used_columns: {} {}'.format(len(used_columns), used_columns))
 
 # Данные для обучения
 X_train = df_X[used_columns].values
@@ -273,6 +270,8 @@ print('roc auc: {:.4}'.format(metric))
 # Отправлено 0.8835
 # 0.8453 0.8461
 # 0.8317
+# 0.8864
+# 0.8879
 
 # df_X = transform_datetime_features(df_X)
 

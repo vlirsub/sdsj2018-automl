@@ -35,22 +35,32 @@ def main(args):
     df_X = df.drop('target', axis=1)
     is_big = df_X.memory_usage().sum() > BIG_DATASET_SIZE
 
-    print('Dataset read, shape {}'.format(df_X.shape))
-
-    # drop constant features
-    constant_columns = [
-        col_name
-        for col_name in df_X.columns
-        if df_X[col_name].nunique() == 1
-    ]
-    df_X.drop(constant_columns, axis=1, inplace=True)
-
     # dict with data necessary to make predictions
     model_config = {}
     model_config['categorical_values'] = {}
     model_config['is_big'] = is_big
 
+    print('Dataset read, shape {}'.format(df_X.shape))
+
+    ##
+    # drop constant features
+    constant_columns = [col_name for col_name in df_X.columns if df_X[col_name].nunique() == 1]
+    df_X.drop(constant_columns, axis=1, inplace=True)
+
+    ##
+    # Колонки с шумом
+    def f_noise_columns(df, val):
+        u = df.shape[0]
+        return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]
+
+    number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
+    noise_columns = f_noise_columns(df_X[number_columns], 0.95)
+    model_config['noise_columns'] = noise_columns
+    print('noise_columns: {}'.format(noise_columns))
+    df_X.drop(noise_columns, axis=1, inplace=True)
+
     if is_big:
+        ##
         # missing values
         if any(df_X.isnull()):
             model_config['missing'] = True
@@ -59,17 +69,18 @@ def main(args):
         new_feature_count = min(df_X.shape[1],
                                 int(df_X.shape[1] / (df_X.memory_usage().sum() / BIG_DATASET_SIZE)))
         # take only high correlated features
-        correlations = np.abs([
-            np.corrcoef(df_y, df_X[col_name])[0, 1]
-            for col_name in df_X.columns if col_name.startswith('number')
-        ])
+        correlations = np.abs([np.corrcoef(df_y, df_X[col_name])[0, 1]
+                               for col_name in df_X.columns if col_name.startswith('number')
+                               ])
         new_columns = df_X.columns[np.argsort(correlations)[-new_feature_count:]]
         df_X = df_X[new_columns]
 
     else:
+        ##
         # features from datetime
-        df_X = transform_datetime_features(df_X)
+        transform_datetime_features(df_X)
 
+        #
         # categorical encoding
         categorical_values = {}
         for col_name in list(df_X.columns):
@@ -80,6 +91,7 @@ def main(args):
                     df_X['onehot_{}={}'.format(col_name, unique_value)] = (df_X[col_name] == unique_value).astype(int)
         model_config['categorical_values'] = categorical_values
 
+        #
         # missing values
         if any(df_X.isnull()):
             model_config['missing'] = True
@@ -100,16 +112,7 @@ def main(args):
     model_config['datetime_columns'] = datetime_columns
     print('datetime_columns: {}'.format(datetime_columns))
 
-    # Колонки с шумом
-    def f_noise_columns(df, val):
-        u = df.shape[0]
-        return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]
-
-    noise_columns = f_noise_columns(df_X[number_columns], 0.95)
-    model_config['noise_columns'] = noise_columns
-    print('noise_columns: {}'.format(noise_columns))
-    df_X.drop(noise_columns, axis=1, inplace=True)
-
+    ##
     if len(id_columns) > 0 and len(datetime_columns) > 0 and args.mode == MODE_REGRESSION:
         # # check_3
         def f_trans(x):
@@ -120,11 +123,12 @@ def main(args):
 
         df_X = df_X[id_columns + ['line_id'] + number_columns].groupby(id_columns).apply(f_trans)
 
+    ##
     if 3 <= len(datetime_columns) <= 10:
         # check_4
         print('Add delta datetime columns')
-        for cn in datetime_columns:
-            df_X[cn] = pd.to_datetime(df_X[cn])
+        # for cn in datetime_columns:
+        #    df_X[cn] = pd.to_datetime(df_X[cn])
         import itertools
         for c1, c2 in list(itertools.combinations(datetime_columns, 2)):
             df_X['number_{}_{}'.format(c1, c2)] = (df_X[c1] - df_X[c2]).dt.days

@@ -1,7 +1,7 @@
 import datetime
 import pandas as pd
 import numpy as np
-
+import re
 
 def parse_dt(x):
     if not isinstance(x, str):
@@ -29,7 +29,7 @@ def transform_datetime_features(df):
         df['number_day_{}'.format(col_name)] = df[col_name].dt.weekday.astype(np.float16)
         df['number_month_{}'.format(col_name)] = df[col_name].dt.month.astype(np.float16)
         df['number_day_{}'.format(col_name)] = df[col_name].dt.day.astype(np.float16)
-    return df
+    #return df
 
 
 def reduce_mem_usage(df):
@@ -68,6 +68,16 @@ def reduce_mem_usage(df):
     print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
     print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
 
-    return df
+    #return df
+
+
+# Проверка содержится ли в колонке дата
+def check_date(col) -> bool:
+    l = len('2010-01-01')
+    r = re.compile(r'\d{4}-\d{2}-\d{2}')
+    for d in col.dropna().unique():
+        if len(d) != l or not r.match(d):
+            return False
+    return True
 
 # eof

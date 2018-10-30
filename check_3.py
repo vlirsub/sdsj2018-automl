@@ -73,6 +73,7 @@ df_test_u['target'].plot(marker='x', color='red')
 #df_X.head()
 #df_X.describe()
 
+# Колленеарность
 def corr_df(x, corr_val):
     # Creates Correlation Matrix and Instantiates
     corr_matrix = x.corr()

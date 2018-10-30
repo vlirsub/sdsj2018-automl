@@ -26,14 +26,17 @@ def main(args):
     print('Test Dataset read, shape {}'.format(df.shape))
 
     if not model_config['is_big']:
+        ##
         # features from datetime
-        df = transform_datetime_features(df)
+        transform_datetime_features(df)
 
+        ##
         # categorical encoding
         for col_name, unique_values in model_config['categorical_values'].items():
             for unique_value in unique_values:
                 df['onehot_{}={}'.format(col_name, unique_value)] = (df[col_name] == unique_value).astype(int)
 
+    ##
     # missing values
     if model_config['missing']:
         df.fillna(-1, inplace=True)
@@ -44,6 +47,7 @@ def main(args):
     datetime_columns = model_config['datetime_columns']
     id_columns = model_config['id_columns']
 
+    ##
     if len(id_columns) > 0 and len(datetime_columns) > 0 and mode == MODE_REGRESSION:
         # check_3
         def f_trans(x):
@@ -54,11 +58,12 @@ def main(args):
 
         df = df[id_columns + ['line_id'] + number_columns].groupby(id_columns).apply(f_trans)
 
+    ##
     if 3 <= len(datetime_columns) <= 10:
         # check_4
         print('Add delta datetime columns')
-        for cn in datetime_columns:
-            df[cn] = pd.to_datetime(df[cn])
+        #for cn in datetime_columns:
+        #    df[cn] = pd.to_datetime(df[cn])
         import itertools
         for c1, c2 in list(itertools.combinations(datetime_columns, 2)):
             df['number_{}_{}'.format(c1, c2)] = (df[c1] - df[c2]).dt.days
