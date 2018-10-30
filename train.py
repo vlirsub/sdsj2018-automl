@@ -17,7 +17,7 @@ import lightgbm as lgb
 
 from sklearn.preprocessing import StandardScaler
 
-from utils import transform_datetime_features
+from utils import transform_datetime_features, reduce_mem_usage
 
 # use this to stop the algorithm before time limit exceeds
 TIME_LIMIT = int(os.environ.get('TIME_LIMIT', 5 * 60))
@@ -48,20 +48,23 @@ def main(args):
     df_X.drop(constant_columns, axis=1, inplace=True)
 
     if is_big:
+
+        reduce_mem_usage(df_X)
+
         ##
         # missing values
         if any(df_X.isnull()):
             model_config['missing'] = True
             df_X.fillna(-1, inplace=True)
 
-        new_feature_count = min(df_X.shape[1],
-                                int(df_X.shape[1] / (df_X.memory_usage().sum() / BIG_DATASET_SIZE)))
-        # take only high correlated features
-        correlations = np.abs([np.corrcoef(df_y, df_X[col_name])[0, 1]
-                               for col_name in df_X.columns if col_name.startswith('number')
-                               ])
-        new_columns = df_X.columns[np.argsort(correlations)[-new_feature_count:]]
-        df_X = df_X[new_columns]
+        # new_feature_count = min(df_X.shape[1],
+        #                         int(df_X.shape[1] / (df_X.memory_usage().sum() / BIG_DATASET_SIZE)))
+        # # take only high correlated features
+        # correlations = np.abs([np.corrcoef(df_y, df_X[col_name])[0, 1]
+        #                        for col_name in df_X.columns if col_name.startswith('number')
+        #                        ])
+        # new_columns = df_X.columns[np.argsort(correlations)[-new_feature_count:]]
+        # df_X = df_X[new_columns]
 
     else:
         ##

@@ -139,17 +139,17 @@ reduce_mem_usage(df_X_test)
 
 gc.collect()
 
-# TODO: Такие строки надо преобразовать в onehot
-# Колонки имеющие строки одинаковой длины
+#
+# Проверки что колонка имеют кодированные onehot признаки
 string_columns = [col_name for col_name in df_X.columns if col_name.startswith('string')]
 
-for col_name in string_columns:
-    df_X[col_name].unique()
-
-df_X['string_18'].dropna().unique().shape
-# string_18 ['000000000000' '111111111111' '000001111111' ... '011011111010' '101001011000' '101011010111']
-# string_19 ['111111111111' '000000000000' '110111111111' '000000000001'
-#  'XXXXXX000000' '111111111000' '111110000000' '110111010110'
+codestring_columns = [col_name for col_name in string_columns if df_X[col_name].dropna().str.len().unique().shape[0] == 1]
+for col_name in codestring_columns:
+    l = df_X[col_name].dropna().str.len().unique()[0]
+    #print('{} {}'.format(col_name, i))
+    for i in range(l):
+        df_X['string_{}_{}'.format(col_name, i)] = df_X[col_name].str[i]
+        df_X_test['string_{}_{}'.format(col_name, i)] = df_X_test[col_name].str[i]
 
 #
 # Строки в категории
@@ -303,6 +303,7 @@ print('roc auc: {:.4}'.format(metric))
 # 0.8879
 # 0.8856
 # 0.8883
+# 0.8882
 
 # df_X = transform_datetime_features(df_X)
 
