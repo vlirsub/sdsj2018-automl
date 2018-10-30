@@ -47,18 +47,6 @@ def main(args):
     constant_columns = [col_name for col_name in df_X.columns if df_X[col_name].nunique() == 1]
     df_X.drop(constant_columns, axis=1, inplace=True)
 
-    ##
-    # Колонки с шумом
-    def f_noise_columns(df, val):
-        u = df.shape[0]
-        return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]
-
-    number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
-    noise_columns = f_noise_columns(df_X[number_columns], 0.95)
-    model_config['noise_columns'] = noise_columns
-    print('noise_columns: {}'.format(noise_columns))
-    df_X.drop(noise_columns, axis=1, inplace=True)
-
     if is_big:
         ##
         # missing values
@@ -111,6 +99,18 @@ def main(args):
     datetime_columns = [col_name for col_name in df_X.columns if col_name.startswith('datetime')]
     model_config['datetime_columns'] = datetime_columns
     print('datetime_columns: {}'.format(datetime_columns))
+
+    ##
+    # Колонки с шумом
+    def f_noise_columns(df, val):
+        u = df.shape[0]
+        return [col_name for col_name in df.columns if df[col_name].unique().shape[0] / u >= val]
+
+    number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
+    noise_columns = f_noise_columns(df_X[number_columns], 0.95)
+    model_config['noise_columns'] = noise_columns
+    print('noise_columns: {}'.format(noise_columns))
+    df_X.drop(noise_columns, axis=1, inplace=True)
 
     ##
     if len(id_columns) > 0 and len(datetime_columns) > 0 and args.mode == MODE_REGRESSION:

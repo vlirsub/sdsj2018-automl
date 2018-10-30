@@ -88,9 +88,7 @@ print('noise_columns: {} {}'.format(len(noise_columns), noise_columns))
 df_X.drop(noise_columns, axis=1, inplace=True)
 df_X_test.drop(noise_columns, axis=1, inplace=True)
 
-# Преобразование колонок с датой
-
-
+#
 # Замена колонок string с датой на дату
 datestr_columns = [col_name for col_name in df_X.columns if col_name.startswith('string')]
 datestr_columns = [col_name for col_name in datestr_columns if check_date(df_X[col_name])]
@@ -102,8 +100,39 @@ for col_name in datestr_columns:
     df_X_test.rename(columns={col_name: 'datetime_' + col_name}, inplace=True)
 
 # Преобразуем колонки datetime_ в тип datetime и добавляем признаки из даты
+def transform_datetime_features(df):
+    datetime_columns = [col_name for col_name in df.columns if col_name.startswith('datetime')]
+    for col_name in datetime_columns:
+        # df[col_name] = df[col_name].apply(lambda x: parse_dt(x))
+        # df['number_weekday_{}'.format(col_name)] = df[col_name].apply(lambda x: x.weekday())
+        # df['number_month_{}'.format(col_name)] = df[col_name].apply(lambda x: x.month)
+        # df['number_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.day)
+        # df['number_hour_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour)
+        # df['number_hour_of_week_{}'.format(col_name)] = df[col_name].apply(lambda x: x.hour + x.weekday() * 24)
+        # df['number_minute_of_day_{}'.format(col_name)] = df[col_name].apply(lambda x: x.minute + x.hour * 60)
+
+        df[col_name] = pd.to_datetime(df[col_name])
+        df['number_wday_{}'.format(col_name)] = df[col_name].dt.weekday.astype(np.float16)
+        df['number_month_{}'.format(col_name)] = df[col_name].dt.month.astype(np.float16)
+        df['number_day_{}'.format(col_name)] = df[col_name].dt.day.astype(np.float16)
+
+        df['number_days_{}'.format(col_name)] = (df[col_name] - df[col_name].min(skipna=True)).dt.days.astype(np.float32)
+
+    #return df
+
 transform_datetime_features(df_X)
 transform_datetime_features(df_X_test)
+
+datetime_columns = [col_name for col_name in df_X.columns if col_name.startswith('datetime')]
+df = df_X[datetime_columns]
+df.min(skipna=True)
+df.max(skipna=True)
+
+df.iloc[:, 8].hist(bins=100)
+
+# TODO: Дату перевести в количество дней от миимальной для столбца
+col_name = 'datetime_0'
+(df[col_name] - df[col_name].min(skipna=True)).dt.days.astype(np.float32)
 
 gc.collect()
 
