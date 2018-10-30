@@ -50,7 +50,20 @@ def main(args):
     if is_big:
 
         reduce_mem_usage(df_X)
+        ##
+        # features from datetime
+        transform_datetime_features(df_X)
+        # №
+        # Проверки что колонка имеют кодированные onehot признаки
+        string_columns = [col_name for col_name in df_X.columns if col_name.startswith('string')]
 
+        codestring_columns = [col_name for col_name in string_columns if
+                              df_X[col_name].dropna().str.len().unique().shape[0] == 1]
+        model_config['codestring_columns'] = codestring_columns
+        for col_name in codestring_columns:
+            l = df_X[col_name].dropna().str.len().unique()[0]
+            for i in range(l):
+                df_X['string_{}_{}'.format(col_name, i)] = df_X[col_name].str[i]
         ##
         # missing values
         if any(df_X.isnull()):

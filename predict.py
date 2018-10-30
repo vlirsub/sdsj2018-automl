@@ -35,7 +35,16 @@ def main(args):
         for col_name, unique_values in model_config['categorical_values'].items():
             for unique_value in unique_values:
                 df['onehot_{}={}'.format(col_name, unique_value)] = (df[col_name] == unique_value).astype(int)
-
+    else:
+        ##
+        # features from datetime
+        transform_datetime_features(df)
+        ##
+        codestring_columns = model_config['codestring_columns']
+        for col_name in codestring_columns:
+            l = df[col_name].dropna().str.len().unique()[0]
+            for i in range(l):
+                df['string_{}_{}'.format(col_name, i)] = df[col_name].str[i]
     ##
     # missing values
     if model_config['missing']:

@@ -117,7 +117,7 @@ def transform_datetime_features(df):
         df['number_month_{}'.format(col_name)] = df[col_name].dt.month.astype(np.float16)
         df['number_day_{}'.format(col_name)] = df[col_name].dt.day.astype(np.float16)
 
-        #df['number_days_{}'.format(col_name)] = (df[col_name] - df[col_name].min(skipna=True)).dt.days.astype(
+        # df['number_days_{}'.format(col_name)] = (df[col_name] - df[col_name].min(skipna=True)).dt.days.astype(
         #    np.float32)
 
     # return df
@@ -127,9 +127,9 @@ transform_datetime_features(df_X)
 transform_datetime_features(df_X_test)
 
 # Среднее по дням
-#datetime_columns = [col_name for col_name in df_X.columns if col_name.startswith('number_days_')]
-#df_X['number_days_mean'] = df_X[datetime_columns].mean(axis=1, skipna=True)
-#df_X_test['number_days_mean'] = df_X_test[datetime_columns].mean(axis=1, skipna=True)
+# datetime_columns = [col_name for col_name in df_X.columns if col_name.startswith('number_days_')]
+# df_X['number_days_mean'] = df_X[datetime_columns].mean(axis=1, skipna=True)
+# df_X_test['number_days_mean'] = df_X_test[datetime_columns].mean(axis=1, skipna=True)
 
 gc.collect()
 
@@ -143,10 +143,11 @@ gc.collect()
 # Проверки что колонка имеют кодированные onehot признаки
 string_columns = [col_name for col_name in df_X.columns if col_name.startswith('string')]
 
-codestring_columns = [col_name for col_name in string_columns if df_X[col_name].dropna().str.len().unique().shape[0] == 1]
+codestring_columns = [col_name for col_name in string_columns if
+                      df_X[col_name].dropna().str.len().unique().shape[0] == 1]
 for col_name in codestring_columns:
     l = df_X[col_name].dropna().str.len().unique()[0]
-    #print('{} {}'.format(col_name, i))
+    # print('{} {}'.format(col_name, i))
     for i in range(l):
         df_X['string_{}_{}'.format(col_name, i)] = df_X[col_name].str[i]
         df_X_test['string_{}_{}'.format(col_name, i)] = df_X_test[col_name].str[i]
@@ -189,14 +190,12 @@ if any(df_X.isnull()):
     df_X.fillna(-1, inplace=True)
     df_X_test.fillna(-1, inplace=True)
 
+number_columns = [col_name for col_name in df_X.columns if col_name.startswith('number')]
 new_feature_count = min(df_X.shape[1],
                         int(df_X.shape[1] / (df_X.memory_usage().sum() / BIG_DATASET_SIZE)))
 # take only high correlated features
-correlations = np.abs([
-    np.corrcoef(df_y, df_X[col_name])[0, 1]
-    for col_name in df_X.columns if col_name.startswith('number')
-])
-new_columns = df_X.columns[np.argsort(correlations)[-new_feature_count:]]
+correlations = np.abs([np.corrcoef(df_y, df_X[col_name])[0, 1] for col_name in number_columns])
+new_columns = df_X.columns[np.argsort(correlations)[-100:]]
 df_X = df_X[new_columns].copy()
 df_X_test = df_X_test[new_columns].copy()
 
